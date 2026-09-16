@@ -138,14 +138,23 @@ BEATを本番サーバーで動かすだけなら、ソースコードやGradle�
 3. 必要に応じてMultiverse-CoreとWorldEditを `plugins/` に配置する。
 4. 受け取った `plugins/BEAT/` を本番サーバーの同じ場所へ配置する。
 5. 受け取ったワールドをサーバールートへ配置する。
-6. サーバーを起動する。
-7. Multiverse-Coreで各競技ワールドをインポートする。
-8. `/plugins` でBEATとProtocolLibが有効になっていることを確認する。
-9. `/beat reload` を実行する。
-10. `/beat setup validate all` が成功することを確認する。
-11. `/beat settings show` で本番用の競技設定になっていることを確認する。
-12. `/beat players` で参加者が正しく読み込まれていることを確認する。
-13. `/beat whitelist admins` を実行し、運営だけが入れる状態にする。
+6. `server.properties` の `level-name` をロビーワールドに設定する。
+7. サーバーを起動する。
+8. Multiverse-Coreで各競技ワールドをインポートする。
+9. `/plugins` でBEATとProtocolLibが有効になっていることを確認する。
+10. `/beat reload` を実行する。
+11. `/beat setup validate all` が成功することを確認する。
+12. `/beat settings show` で本番用の競技設定になっていることを確認する。
+13. `/beat players` で参加者が正しく読み込まれていることを確認する。
+14. `/beat whitelist admins` を実行し、運営だけが入れる状態にする。
+
+`server.properties` には次のように設定します。
+
+```properties
+level-name=0_lobby
+```
+
+`0_lobby` フォルダーをサーバールートへ配置してから起動してください。これにより、サーバーのデフォルトワールドとしてロビーが読み込まれます。
 
 Multiverse-Coreでワールドをインポートする場合の例です。
 
