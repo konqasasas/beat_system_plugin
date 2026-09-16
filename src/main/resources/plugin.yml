@@ -1,0 +1,10 @@
+name: Beat
+version: '${version}'
+main: dev.konqasasas.beat.BeatPlugin
+api-version: '26.2'
+description: A Spigot 26.2 plugin development project.
+depend: [ProtocolLib]
+commands:
+  beat:
+    description: BEAT大会の運営コマンド
+    usage: /beat help

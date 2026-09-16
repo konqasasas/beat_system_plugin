@@ -1,0 +1,479 @@
+schema-version: 1
+
+plugin:
+  enabled: "BEATを有効化しました。"
+  disabled: "BEATを無効化しました。"
+
+reload:
+  success: "[BEAT] config・messages・styles・JSON・マップ設定を再読み込みしました。"
+  failed: "[BEAT] ERROR: 再読み込みに失敗しました。以前の正常な設定を維持します。"
+  blocked: "[BEAT] 競技進行中のためreloadできません。"
+
+commands:
+  no-permission: "[BEAT] このコマンドを使用する権限がありません。"
+  player-only: "[BEAT] menuはゲーム内専用です。"
+  unknown: "[BEAT] 不明なサブコマンドです。/beat help を確認してください。"
+  error: "[BEAT] ERROR: {message}"
+  players:
+    header: "{primary}--- BEAT 参加者 ---{reset}"
+    row: "{mcid} ({uuid})"
+    total: "合計: {count}"
+  player:
+    usage: "使用例: /beat player info <player>"
+    updated: "[BEAT] プレイヤー設定を更新しました: {player}"
+    not-found: "[BEAT] 参加者が見つかりません: {player}"
+    header: "{primary}--- BEAT Player Info ---{reset}"
+    mcid: "登録MCID: {mcid}"
+    uuid: "UUID: {uuid}"
+    tournament-name: "大会時MCID: {name}"
+    not-participated: "未参加"
+  whitelist:
+    usage: "使用例: /beat whitelist <admins|all|status>"
+    mode: "Whitelist mode: {mode}"
+    counts: "Configured: {configured} / Actual: {actual}"
+    synchronized: "完全同期: {value}"
+    synchronized-yes: "YES"
+    synchronized-no: "NO"
+    completed: "[BEAT] Whitelistを完全同期しました: {mode}"
+    changes: "対象: {configured} / 追加: {added} / 削除: {removed}"
+    failed: "[BEAT] ERROR: Whitelistモードを保存できませんでした。"
+  competition:
+    status: "[BEAT] 大会状態: {state}"
+    ta-started: "[BEAT] TA開始カウントダウンを開始しました。"
+    endurance-started: "[BEAT] 耐久開始カウントダウンを開始しました。"
+    high-practice-started: "[BEAT] 高難易度の練習開始カウントダウンを開始しました。"
+    high-running-started: "[BEAT] 高難易度本番を開始しました。"
+    restart-confirm: "[BEAT] 高難易度の現在記録を破棄します。30秒以内に /beat competition restart high confirm を実行してください。"
+    restart-practice: "[BEAT] 高難易度を練習前へ戻しました。自動開始はしません。"
+    restart-running: "[BEAT] 高難易度を本番開始待ちへ戻しました。自動開始はしません。"
+    help:
+      - "{primary}--- BEAT 競技操作 ---{reset}"
+      - "/beat competition high start - 高難易度の練習から開始"
+      - "/beat competition status - 現在の大会状態"
+      - "/beat competition ta start - タイムアタックを開始"
+      - "/beat competition endurance start - 耐久を開始"
+      - "/beat competition restart high - 高難易度を二段階確認で再試合準備へ戻す"
+  emergency:
+    confirm: "[BEAT] 緊急操作 '{action}' を実行します。30秒以内に同じコマンドへ confirm を付けて再実行してください。"
+    cancelled: "[BEAT] 現在フェーズを安全状態へ中止しました。"
+    collected: "[BEAT] オンライン参加者 {count} 人を回収しました。"
+    forced: "[BEAT] 現在の競技を強制終了し、結果を確定しました。"
+    restarted: "[BEAT] 現在の競技を再試合準備へ戻しました: {state}"
+    help:
+      - "{primary}--- BEAT 緊急操作 ---{reset}"
+      - "/beat emergency <cancel|collect|force-end|restart> [confirm]"
+  event:
+    reset-confirm: "[BEAT] 大会データを初期化します。{seconds}秒以内に /beat event reset confirm を実行してください。"
+    reset-completed: "[BEAT] 大会データを初期化しました。バックアップ: {count}件"
+    reset-failed: "[BEAT] ERROR: 大会データの初期化に失敗しました: {message}"
+    help:
+      - "{primary}--- BEAT 大会データ操作 ---{reset}"
+      - "/beat event reset - 大会データをバックアップ後に初期化（二段階確認）"
+  overall:
+    calculated: "[BEAT] 総合順位を計算しました: {count}人"
+    confirmed: "[BEAT] 総合結果を確定しました。"
+    not-calculated: "[BEAT] 総合順位は未計算です。"
+    header: "{primary}--- OVERALL RESULT ---{reset}"
+    row: "#{rank} x{score} {player} [{high} * {ta} * {endurance}]"
+    state: "状態: {state}"
+    confirmed-state: "確定"
+    unconfirmed-state: "未確定"
+    help:
+      - "/beat overall calculate - 総合順位を再計算"
+      - "/beat overall confirm - 総合結果を確定"
+      - "/beat overall result - 総合結果を表示"
+  result:
+    undo: "[BEAT] 直前の結果編集を戻しました。"
+    recalculated: "[BEAT] 順位を再計算しました。"
+    confirmed: "[BEAT] 競技結果を再確定しました。"
+    edited: "[BEAT] 編集しました。recalculateを実行してください。"
+    usage: "使用例: /beat result <high|ta|endurance>"
+    not-confirmed-high: "[BEAT] 高難易度の結果はまだ確定していません。"
+    not-confirmed-ta: "[BEAT] TAの結果は未確定です。"
+    not-confirmed-endurance: "[BEAT] 耐久結果は未確定です。"
+    load-failed: "[BEAT] ERROR: 結果を読み込めませんでした。"
+    header-high: "{primary}--- HIGH DIFFICULTY RESULT ---{reset}"
+    header-ta: "{primary}--- TIME ATTACK RESULT ---{reset}"
+    header-endurance: "{primary}--- ENDURANCE RESULT ---{reset}"
+    header-raw: "{primary}--- {competition} RESULT ({state}) ---{reset}"
+    row-high: "#{rank} {points}pt {player}"
+    row-ta: "#{rank} {time} {player}"
+    row-endurance: "#{rank} Progress {progress} {player}"
+  debug:
+    enabled: "[BEAT] Debugを有効化しました。本番データには保存されません。"
+    disabled: "[BEAT] Debugデータを破棄して無効化しました。"
+    status: "[BEAT] Debug: {status}"
+    bots-added: "[BEAT] Debug botsを追加しました: {count}"
+    bots-cleared: "[BEAT] Debug botsを全削除しました。"
+    record-set: "[BEAT] Debug {competition}記録を投入しました。"
+    filled: "[BEAT] Debug {competition} をseed={seed}で生成しました。"
+    case-generated: "[BEAT] 特殊ケースを生成しました: {competition} {case}"
+    tick: "[BEAT] Debug tick = {tick}"
+    next: "[BEAT] 次イベント10秒前へ移動: tick={tick}"
+    high-practice-skipped: "[BEAT] 高難易度の練習をスキップし、準備フェーズへ進めました。"
+    trigger: "[BEAT] Trigger: {result}"
+    error: "[BEAT] DEBUG ERROR: {message}"
+    scenario-header: "{primary}--- DEBUG SCENARIO: {name} ---{reset}"
+    scenario-check-pass: "{success}✓ {label}"
+    scenario-check-fail: "{error}✗ {label} expected={expected} actual={actual}"
+    scenario-summary-pass: "{success}PASS {passed} / {total}"
+    scenario-summary-fail: "{error}FAIL {passed} / {total}"
+    all-summary: "DEBUG ALL SCENARIOS: {passed} / {total} (FAIL {failed})"
+    help:
+      - "{primary}--- BEAT Debug ---{reset}"
+      - "/beat debug enable|disable|status"
+      - "/beat debug high-practice skip"
+      - "/beat debug bots add <count>|clear"
+      - "/beat debug <high|ta|endurance> set <bot> <value> [reached <tick>]"
+      - "/beat debug fill <high|ta|endurance|all> [seed <seed>]"
+      - "/beat debug case <competition> <case>"
+      - "/beat debug time set <mm:ss>|advance <10s>|next"
+      - "/beat debug trigger <competition> <event> [values]"
+      - "/beat debug scenario <name|all>"
+  help:
+    - "{primary}--- BEAT 管理コマンド ---{reset}"
+    - "/beat players - 登録参加者一覧"
+    - "/beat player info <player> - 参加者情報"
+    - "/beat whitelist admins - 運営のみへ完全同期"
+    - "/beat whitelist all - 運営と参加者へ完全同期"
+    - "/beat whitelist status - 現在の同期状態"
+    - "/beat reload - 全設定・参加者・運営JSON・マップ設定を再読込"
+    - "/beat setup help - マップセットアップ"
+    - "/beat competition high start - 高難易度を開始"
+    - "/beat result high - 高難易度の確定結果を表示"
+    - "/beat overall <calculate|confirm|result> - 総合順位"
+    - "/beat event reset - 大会データをバックアップ後に初期化"
+    - "/beat emergency <cancel|collect|force-end|restart> - 緊急操作（二段階確認）"
+    - "/beat debug <enable|scenario|...> - 分離デバッグ環境"
+  setup:
+    wand-given: "[BEAT] 範囲選択ツールを渡しました。"
+    wand-owned: "[BEAT] 範囲選択ツールは既に所持しています。"
+    selection-cleared: "[BEAT] 選択をクリアしました。"
+    show-empty: "[BEAT] 現在のワールドで表示できる範囲がありません。"
+    show-count: "[BEAT] {count}件の範囲を表示します（本人にのみ表示）。"
+    show-point-count: "[BEAT] {count}件の地点をDUSTで表示します（本人にのみ表示）。"
+    show-point-count-persistent: "[BEAT] {count}件の地点をDUSTで継続表示します。停止: /beat setup show endurance off"
+    show-endurance-off: "[BEAT] 耐久ProgressのDUST表示を停止しました。"
+    show-endurance-not-active: "[BEAT] 耐久ProgressのDUST表示は有効ではありません。"
+    saved: "[BEAT] 保存しました: {target}"
+    usage: "[BEAT] 使用方法が正しくありません。/beat setup help を確認してください。"
+    error: "[BEAT] ERROR: {message}"
+    info-header: "{primary}--- {label} ---{reset}"
+    info-world: "World: {world}"
+    info-x: "X: {min} - {max}"
+    info-y: "Y: {y}"
+    info-z: "Z: {min} - {max}"
+    list-values: "{label}: {values}"
+    list-missing: "Missing: {values}"
+    list-goal: "Goal: {value}"
+    validation-state: "Validation: {state}"
+    validation-issue: "{severity} [{code}] {message}"
+    validation-counts: "ERROR: {errors} / WARNING: {warnings}"
+    help:
+      - "{primary}--- BEAT マップセットアップ ---{reset}"
+      - "範囲を登録する場合:"
+      - "1. /beat setup wand で選択ツールを取得"
+      - "2. 左クリックでPos1 / 右クリックでPos2"
+      - "3. /beat setup <競技> ... で登録"
+      - "詳細: /beat setup help <high|ta|endurance>"
+      - "確認: /beat setup show|info|list|validate ..."
+    help-high:
+      - "/beat setup high spot add <course>"
+      - "/beat setup high spot set <course> <spot>"
+      - "/beat setup high goal set <course>"
+      - "/beat setup high start set <course>"
+      - "/beat setup high prepare|end set"
+    help-ta:
+      - "/beat setup ta start set"
+      - "/beat setup ta split add"
+      - "/beat setup ta split set|remove <number>"
+      - "/beat setup ta goal set"
+      - "/beat setup ta restart|end set"
+    help-endurance:
+      - "/beat setup endurance progress add [number]"
+      - "/beat setup endurance progress set <number>"
+      - "/beat setup endurance progress remove <number> [location-index]"
+      - "/beat setup endurance goal set"
+      - "/beat setup endurance zone set <2|3> <progress>"
+      - "/beat setup endurance zone-restart set <2|3>"
+      - "/beat setup endurance start|end set"
+      - "/beat setup endurance fall-y set <here|y>"
+
+setup-wand:
+  no-permission: "[BEAT] このツールを使用する権限がありません。"
+  selected: "[BEAT] {position}: {world} ({x}, {y}, {z})"
+  error: "[BEAT] ERROR: {message}"
+
+player-visibility:
+  shown: "&aプレイヤー表示: ON"
+  hidden: "&cプレイヤー表示: OFF"
+  admin-tab: "&c[ADMIN] &f{player}"
+
+gui:
+  titles:
+    main: "BEAT 運営メニュー"
+    players: "BEAT Players {page}/{pages}"
+    player: "BEAT Player: {player}"
+    results: "BEAT 競技結果"
+    result: "BEAT {competition} Result {page}/{pages}"
+    overall: "BEAT Overall {page}/{pages}"
+    whitelist: "BEAT Whitelist"
+    setup: "BEAT Setup Validation"
+    validation: "Validation: {competition}"
+    start: "{competition} 開始確認"
+    emergency: "BEAT 緊急操作"
+  common:
+    back: "戻る"
+    previous-page: "前のページ"
+    next-page: "次のページ"
+    execute: "実行する"
+    confirmed: "確定"
+    unconfirmed: "未確定"
+    online: "Online"
+    offline: "Offline"
+    not-recorded: "未記録"
+  main:
+    high: "高難易度"
+    time-attack: "タイムアタック"
+    endurance: "耐久"
+    overall: "総合"
+    players: "Players"
+    results: "結果"
+    setup: "Setup"
+    whitelist: "Whitelist"
+    emergency: "緊急操作"
+  main-lore:
+    high:
+      - "状態: {state}"
+    time-attack:
+      - "開始前に自動Validation"
+    endurance:
+      - "開始前に自動Validation"
+    overall:
+      - "計算・確認・確定"
+    players:
+      - "登録参加者一覧・個人状態"
+    results:
+      - "競技結果・再計算・確定"
+    setup:
+      - "全マップValidation"
+    whitelist:
+      - "同期状態・モード切替"
+    emergency:
+      - "通常操作とは分離されています"
+  confirm-titles:
+    cancel: "フェーズを中止しますか？"
+    collect: "参加者を回収しますか？"
+    force-end: "現在の競技を強制終了しますか？"
+    restart: "現在の競技を再試合準備へ戻しますか？"
+    announce: "結果を全員に発表しますか？"
+  results:
+    high: "高難易度"
+    time-attack: "TA"
+    endurance: "耐久"
+  result:
+    row-name: "#{rank} {player}"
+    announce: "結果を発表"
+    announce-lore:
+      - "確定済みの全順位を全員へ発表"
+    announce-execute: "発表する"
+    announce-confirm-lore:
+      - "全オンラインプレイヤーのChatへ送信"
+    recalculate: "順位を再計算"
+    recalculate-lore:
+      - "元記録から再計算"
+    confirm: "結果を確定"
+    confirm-lore:
+      - "確定後は通常編集不可"
+    high-lore:
+      - "Point: {points}"
+      - "到達tick: {tick}"
+      - "{flags}"
+    time-attack-lore:
+      - "PB: {pb}"
+      - "記録tick: {tick}"
+      - "{flags}"
+    endurance-lore:
+      - "Progress: {progress}"
+      - "到達tick: {tick}"
+      - "Zone2: {zone2} / Zone3: {zone3}"
+      - "{flags}"
+    disqualified: "失格"
+    excluded: "総合対象外"
+    valid: "有効"
+  whitelist:
+    current: "現在: {mode}"
+    status-lore:
+      - "設定対象: {configured}"
+      - "Whitelist登録: {actual}"
+      - "{sync}"
+    synchronized: "完全同期済み"
+    difference: "差分あり"
+    admins: "運営のみ"
+    admins-lore:
+      - "admins.jsonへ完全同期"
+    all: "運営＋参加者"
+    all-lore:
+      - "admins + participantsへ完全同期"
+  validation:
+    summary-lore:
+      - "ERROR: {errors}"
+      - "WARNING: {warnings}"
+      - "クリックで詳細"
+    pass: "PASS"
+    no-issues:
+      - "問題はありません"
+    back: "Setupへ戻る"
+  players:
+    row-lore:
+      - "{uuid}"
+      - "{online}"
+      - "大会名: {tournamentName}"
+  player:
+    detail-lore:
+      - "UUID: {uuid}"
+      - "Online: {online}"
+      - "大会名: {tournamentName}"
+      - "High: {high}"
+      - "TA: {ta}"
+      - "Endurance: {endurance}"
+      - "総合除外: {excluded}"
+      - "失格: {disqualified}"
+    exclude: "総合対象外にする"
+    include: "総合対象へ戻す"
+    disqualify: "失格にする"
+    undisqualify: "失格を解除"
+    back: "Playersへ戻る"
+  start:
+    summary-lore:
+      - "参加者: {participants}"
+      - "Online: {online}"
+      - "ERROR: {errors} / WARNING: {warnings}"
+    issue: "{severity}: {message}"
+    blocked: "開始できません"
+    with-warning: "警告を確認して開始"
+    execute: "開始する"
+  overall:
+    row-name: "#{rank} {player}"
+    row-lore:
+      - "持ち点: x{score}"
+      - "[{high} * {ta} * {endurance}]"
+      - "{state}"
+    calculate: "総合を計算"
+    confirm: "総合を確定"
+    confirmed: "確定済み"
+    needs-confirmation: "要確認"
+  emergency:
+    cancel: "現在フェーズを中止"
+    collect: "参加者を全回収"
+    force-end: "現在競技を強制終了"
+    restart: "現在競技を再試合"
+    irreversible: "この操作は取り消せない場合があります"
+    cancel-lore:
+      - "進行中データを保存せず安全状態へ"
+      - "二段階確認"
+    collect-lore:
+      - "現在競技の終了地点へ移動"
+      - "二段階確認"
+    force-end-lore:
+      - "現時点の結果を確定"
+      - "競技中のみ実行可能"
+      - "二段階確認"
+    restart-lore:
+      - "現在記録を破棄して準備状態へ"
+      - "二段階確認"
+    cancelled: "[BEAT] 現在フェーズを安全状態へ中止しました。"
+    collected: "[BEAT] オンライン参加者 {count} 人を回収しました。"
+    forced: "[BEAT] 現在の競技を強制終了し、結果を確定しました。"
+    restarted: "[BEAT] 現在の競技を再試合準備へ戻しました: {state}"
+  error: "[BEAT] ERROR: {message}"
+
+errors:
+  invalid-state: "現在の大会状態では実行できません。"
+  data-load-failed: "データを読み込めませんでした。最後に正常に読み込んだ状態を維持します。"
+
+warnings:
+  unexpected-game-mode: "[BEAT] WARNING: {player} のGameModeが競技中に {mode} へ変更されました。自動復旧はしていません。"
+
+high:
+  practice:
+    checkpoint-missing: "[BEAT] CPが設定されていません。Qで設定してください。"
+    checkpoint-set: "[BEAT] CPを設定しました"
+    checkpoint-ground-only: "[BEAT] 地面にいるときのみCPを設定できます"
+
+ui:
+  actionbar:
+    notification: "{warning}!! {reset}{message} {warning}!!"
+  bossbar:
+    high-title: "HIGH DIFFICULTY"
+    time-attack-title: "TIME ATTACK"
+    endurance-title: "ENDURANCE"
+    competition-time: "残り時間 {remaining} ｜ 次の脱落 {next}"
+    high-practice: "練習 残り時間 {remaining}"
+    high-prepare: "準備 残り時間 {remaining}"
+  high:
+    status: "&ePoint &f{points} &7｜ &b#{rank} &7｜ &aCourse &f{course}"
+  time-attack:
+    status: "&eTime &f{time} &7｜ &aPB &f{pb} &7｜ &b#{rank}"
+    border: " &7｜ &dBorder &f{border}"
+  endurance:
+    status: "&eProgress &f{progress} &7｜ &b#{rank} &7｜ &aZone &f{zone}"
+  scoreboard:
+    high-title: "HIGH DIFFICULTY"
+    high-row: "&f#{rank} {points}pt {player}"
+    time-attack-title: "TIME ATTACK"
+    time-attack-row: "&f#{rank} {time} {player}"
+    endurance-title: "ENDURANCE"
+    endurance-row: "&f#{rank} Progress {progress} {player}"
+  tab:
+    high-row: "#{rank} {points}pt {player}"
+    time-attack-row: "#{rank} {time} {player}"
+    endurance-row: "#{rank} Progress {progress} {player}"
+
+notifications:
+  high:
+    practice-countdown: "[BEAT] 練習開始まで... {seconds}"
+    practice-ending-countdown: "[BEAT] 練習終了まで... {seconds}"
+    running-countdown: "[BEAT] 本番開始まで... {seconds}"
+    practice-started: "[BEAT] 高難易度の練習を開始します。"
+    running-started: "[BEAT] 高難易度本番を開始します。"
+    spot: "Spot {spot} 到達 ｜ {points}pt (+{delta})"
+    course-clear: "Course {course} Clear! ｜ {points}pt (+{delta})"
+    all-clear: "ALL CLEAR! ｜ {points}pt ｜ #{rank}"
+    all-clear-broadcast: "[BEAT] {player} が全コースクリア！ {points}pt (#{rank})"
+    checkpoint-updated: "[BEAT] CPが{course}に更新されました。"
+    checkpoint-disabled: "[BEAT] 完走したためCPを使用できなくなりました。"
+    time-limit-countdown: "[BEAT] 制限時間終了まで... {seconds}"
+    time-limit-ended: "[BEAT] 制限時間終了！"
+    rank-update: "[BEAT] {player} が更新: {points}pt (#{rank})"
+    elimination-warning: "[BEAT] コース{course}未到達者脱落まで... {seconds}"
+    elimination: "[BEAT] コース{course}未到達者脱落！"
+    eliminated: "[BEAT] 脱落しました。最終記録: {points}pt (#{rank})"
+    finished: "[BEAT] 高難易度競技が終了し、結果を確定しました。"
+  time-attack:
+    countdown: "[BEAT] 競技開始まで... {seconds}"
+    started: "[BEAT] TA競技開始！"
+    split: "Split {split} {time} ｜ PB {pb}"
+    personal-best: "PB更新! {time} ｜ #{rank}"
+    run-finished: "Time {time} ｜ PB {pb} ｜ +{difference}"
+    time-limit-countdown: "[BEAT] 制限時間終了まで... {seconds}"
+    time-limit-ended: "[BEAT] 制限時間終了！"
+    rank-update: "[BEAT] {player} が更新: {time} (#{rank})"
+    elimination-warning: "[BEAT] {rank}位以下脱落まで... {seconds}"
+    elimination: "[BEAT] {rank}位以下脱落！"
+    eliminated: "[BEAT] 脱落しました。最終記録: {time} (#{rank})"
+    finished: "[BEAT] TAが終了し結果を確定しました。"
+  endurance:
+    countdown: "[BEAT] 競技開始まで... {seconds}"
+    started: "[BEAT] 耐久競技開始！"
+    goal: "GOAL! ｜ {time} ｜ #{rank}"
+    goal-broadcast: "[BEAT] {player} が完走！ {time} (#{rank})"
+    zone: "Zone {zone} 到達 ｜ Progress {progress} ｜ #{rank}"
+    progress: "Progress {progress} 到達 ｜ #{rank}"
+    rank-update: "[BEAT] {player} が更新: Progress {progress} (#{rank})"
+    time-limit-countdown: "[BEAT] 制限時間終了まで... {seconds}"
+    time-limit-ended: "[BEAT] 制限時間終了！"
+    elimination-warning: "[BEAT] Zone {zone} 未到達者脱落まで... {seconds}"
+    elimination: "[BEAT] Zone {zone} 未到達者脱落！"
+    eliminated: "[BEAT] 脱落しました。最終記録: Progress {progress} (#{rank})"
+    finished: "[BEAT] 耐久が終了し結果を確定しました。"

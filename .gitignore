@@ -1,0 +1,21 @@
+# Gradle output and local state
+.gradle/
+build/
+
+# Java and IDE-generated output
+*.class
+out/
+bin/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Local Spigot runtime. Keep only its documentation and directory markers.
+/run/*
+!/run/README.md
+!/run/plugins/
+/run/plugins/*
+!/run/plugins/.gitkeep

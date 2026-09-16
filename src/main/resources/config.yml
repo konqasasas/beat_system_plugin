@@ -1,0 +1,111 @@
+schema-version: 1
+
+timings:
+  high-practice-ticks: 12000
+  high-prepare-ticks: 1200
+  high-running-ticks: 36000
+  ta-running-ticks: 36000
+  endurance-running-ticks: 36000
+
+countdowns:
+  competition-start-ticks: 200
+
+ui-update-ticks:
+  action-bar: 10
+  boss-bar: 10
+  scoreboard: 20
+  player-visibility: 20
+
+confirmation-timeouts:
+  dangerous-action-millis: 30000
+
+eliminations:
+  high-ticks: [12000, 18000, 24000, 30000]
+  ta-ticks: [24000, 30000]
+  endurance-ticks: [24000, 30000]
+
+ta:
+  survivor-counts: [20, 10]
+  restart-item:
+    material: RECOVERY_COMPASS
+    name: "&eTA リスタート"
+    lore:
+      - "&7使用するとリスタート地点へ戻ります。"
+
+high-difficulty:
+  spot-points: 50
+  goal-points: 100
+  practice-items:
+    flight:
+      material: FEATHER
+      slot: 1
+      name: "&b練習用飛行切替"
+      lore:
+        - "&7使用して飛行のON/OFFを切り替えます。"
+    checkpoint:
+      material: RECOVERY_COMPASS
+      slot: 0
+      name: "&a練習用個人CP"
+      lore:
+        - "&7Q: 現在地点をCPに設定"
+        - "&7使用: CPへ復帰"
+  running-item:
+    material: RECOVERY_COMPASS
+    name: "&e現在CourseのStartへ戻る"
+    lore:
+      - "&7使用すると現在Courseの開始地点へ戻ります。"
+
+endurance:
+  progress-trigger:
+    horizontal-radius: 0.25
+    vertical-tolerance: 0.5
+
+setup:
+  wand:
+    material: BLAZE_ROD
+    name: "&bBEAT 範囲選択ツール"
+    lore:
+      - "&7左クリック: Pos1を設定"
+      - "&7右クリック: Pos2を設定"
+      - "&7選択後、/beat setup ... で登録します。"
+
+player-visibility:
+  item:
+    material: ENDER_EYE
+    slot: 8
+    name: "&bプレイヤー表示切替"
+    lore:
+      - "&7使用して他の参加者の姿をON/OFFします。"
+      - "&7Tabランキングには常に表示されます。"
+
+# GUIアイコンは、現在の標準Material名をキーにまとめて変更できます。
+gui:
+  items:
+    arrow: { material: ARROW }
+    barrier: { material: BARRIER }
+    blaze-rod: { material: BLAZE_ROD }
+    clock: { material: CLOCK }
+    compass: { material: COMPASS }
+    diamond-boots: { material: DIAMOND_BOOTS }
+    emerald: { material: EMERALD }
+    ender-pearl: { material: ENDER_PEARL }
+    gray-dye: { material: GRAY_DYE }
+    iron-bars: { material: IRON_BARS }
+    iron-boots: { material: IRON_BOOTS }
+    iron-door: { material: IRON_DOOR }
+    light-blue-concrete: { material: LIGHT_BLUE_CONCRETE }
+    lime-concrete: { material: LIME_CONCRETE }
+    lime-dye: { material: LIME_DYE }
+    nether-star: { material: NETHER_STAR }
+    note-block: { material: NOTE_BLOCK }
+    oak-door: { material: OAK_DOOR }
+    paper: { material: PAPER }
+    player-head: { material: PLAYER_HEAD }
+    red-concrete: { material: RED_CONCRETE }
+    red-dye: { material: RED_DYE }
+    redstone-block: { material: REDSTONE_BLOCK }
+    redstone-torch: { material: REDSTONE_TORCH }
+    tnt: { material: TNT }
+    writable-book: { material: WRITABLE_BOOK }
+    yellow-concrete: { material: YELLOW_CONCRETE }
+    yellow-dye: { material: YELLOW_DYE }

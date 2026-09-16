@@ -1,0 +1,129 @@
+schema-version: 1
+
+# messages.yml では {beat} / {primary} / {success} / {warning} / {error} / {reset} として使用できます。
+colors:
+  brand: DARK_AQUA
+  primary: AQUA
+  success: GREEN
+  warning: YELLOW
+  error: RED
+
+display-ticks:
+  feedback: 60
+  goal: 60
+
+sounds:
+  countdown:
+    name: BLOCK_NOTE_BLOCK_HAT
+    volume: 1.0
+    pitch: 1.0
+  high-spot:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.8
+    pitch: 1.5
+  high-practice-start:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 1.0
+    pitch: 2.0
+  high-practice-checkpoint:
+    name: BLOCK_RESPAWN_ANCHOR_SET_SPAWN
+    volume: 0.8
+    pitch: 1.2
+  high-practice-flight:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.8
+    pitch: 1.2
+  high-course:
+    name: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 1.2
+  high-goal:
+    name: UI_TOAST_CHALLENGE_COMPLETE
+    volume: 1.0
+    pitch: 1.0
+  ta-personal-best:
+    name: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 1.0
+  ta-start:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.8
+    pitch: 1.2
+  ta-split:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.8
+    pitch: 1.5
+  ta-finished:
+    name: BLOCK_NOTE_BLOCK_CHIME
+    volume: 0.9
+    pitch: 1.0
+  player-visibility:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.8
+    pitch: 1.0
+  elimination:
+    name: minecraft:entity.dragon_fireball.explode
+    volume: 0.7
+    pitch: 0.7
+  time-limit-end:
+    name: BLOCK_NOTE_BLOCK_BASS
+    volume: 1.0
+    pitch: 0.5
+  endurance-progress:
+    name: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.7
+    pitch: 1.5
+  endurance-zone:
+    name: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 1.0
+  endurance-goal:
+    name: UI_TOAST_CHALLENGE_COMPLETE
+    volume: 1.0
+    pitch: 1.0
+
+boss-bars:
+  high:
+    color: BLUE
+    style: SOLID
+  high-practice:
+    color: GREEN
+    style: SOLID
+  high-prepare:
+    color: YELLOW
+    style: SOLID
+  time-attack:
+    color: BLUE
+    style: SOLID
+  endurance:
+    color: GREEN
+    style: SOLID
+
+setup-visualization:
+  display-ticks: 100
+  interval-ticks: 5
+  max-particles-per-tick: 200
+  spacing: 1.0
+  endurance-progress:
+    color: [255, 200, 40]
+    size: 0.7
+    max-particles-per-tick: 2000
+  particles:
+    spot: END_ROD
+    progress: END_ROD
+    goal: FLAME
+    start: HAPPY_VILLAGER
+
+endurance-progress-particles:
+  interval-ticks: 5
+  view-distance: 32.0
+  max-particles-per-player: 8000
+  completed:
+    color: [70, 220, 90]
+    size: 0.6
+  next:
+    color: [255, 200, 40]
+    size: 0.8
+  future:
+    color: [40, 210, 255]
+    size: 0.6

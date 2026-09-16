@@ -1,0 +1,20 @@
+package dev.konqasasas.beat.domain.state;
+
+public enum TournamentState {
+    WAITING,
+    HIGH_PRACTICE_COUNTDOWN,
+    HIGH_PRACTICE,
+    HIGH_PREPARE,
+    HIGH_RUNNING,
+    HIGH_FINISHED,
+    TA_READY,
+    TA_COUNTDOWN,
+    TA_RUNNING,
+    TA_FINISHED,
+    ENDURANCE_READY,
+    ENDURANCE_COUNTDOWN,
+    ENDURANCE_RUNNING,
+    ENDURANCE_FINISHED,
+    OVERALL_READY,
+    OVERALL_CONFIRMED
+}
