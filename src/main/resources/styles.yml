@@ -21,10 +21,10 @@ sounds:
     name: BLOCK_NOTE_BLOCK_PLING
     volume: 0.8
     pitch: 1.5
-  high-practice-start:
-    name: BLOCK_NOTE_BLOCK_PLING
+  competition-start:
+    name: BLOCK_NOTE_BLOCK_BELL
     volume: 1.0
-    pitch: 2.0
+    pitch: 1.2
   high-practice-checkpoint:
     name: BLOCK_RESPAWN_ANCHOR_SET_SPAWN
     volume: 0.8

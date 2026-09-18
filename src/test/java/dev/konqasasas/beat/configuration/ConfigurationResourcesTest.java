@@ -87,7 +87,7 @@ class ConfigurationResourcesTest {
             assertPath(styles, "boss-bars." + competition + ".style");
         }
         for (String sound : new String[] {
-                "countdown", "high-spot", "high-practice-start", "high-practice-checkpoint",
+                "countdown", "competition-start", "high-spot", "high-practice-checkpoint",
                 "high-practice-flight", "high-course", "high-goal", "ta-start", "ta-split",
                 "ta-personal-best", "ta-finished", "player-visibility", "elimination", "time-limit-end",
                 "endurance-progress", "endurance-zone", "endurance-goal"

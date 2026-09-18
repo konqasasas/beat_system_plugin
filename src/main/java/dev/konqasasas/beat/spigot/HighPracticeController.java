@@ -220,8 +220,8 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                 player.sendMessage(configuration.message(
                         "notifications.high.practice-started",
                         "[BEAT] 高難易度の練習を開始します。"));
-                playConfigured(player, "sounds.high-practice-start",
-                        Sound.BLOCK_NOTE_BLOCK_PLING, 1F, 2F);
+                playConfigured(player, "sounds.competition-start",
+                        Sound.BLOCK_NOTE_BLOCK_BELL, 1F, 1.2F);
             });
             updatePracticeBossBar();
             announcePracticeEndingIfDue();
@@ -285,9 +285,13 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         if (after == HighPracticeSession.Phase.COMPLETE) {
             removeBossBar();
             competition.startFromPrepare();
-            forOnlineParticipants(player -> player.sendMessage(configuration.message(
-                    "notifications.high.running-started",
-                    "[BEAT] 高難易度本番を開始します。")));
+            forOnlineParticipants(player -> {
+                player.sendMessage(configuration.message(
+                        "notifications.high.running-started",
+                        "[BEAT] 高難易度本番を開始します。"));
+                playConfigured(player, "sounds.competition-start",
+                        Sound.BLOCK_NOTE_BLOCK_BELL, 1F, 1.2F);
+            });
             if (task != null) task.cancel();
             task = null;
             session = null;

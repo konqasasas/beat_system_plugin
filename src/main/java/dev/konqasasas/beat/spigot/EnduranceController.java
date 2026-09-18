@@ -171,6 +171,8 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                     forPlayers(player -> {
                         session.activate(player.getUniqueId());
                         markers.showCompetition(player, session.record(player.getUniqueId()).maxProgress());
+                        playConfigured(player, "sounds.competition-start",
+                                Sound.BLOCK_NOTE_BLOCK_BELL, 1F, 1.2F);
                     });
                     Bukkit.broadcastMessage(configuration.message(
                             "notifications.endurance.started", "[BEAT] 耐久競技開始！"));
