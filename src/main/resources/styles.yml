@@ -104,26 +104,8 @@ setup-visualization:
   interval-ticks: 5
   max-particles-per-tick: 200
   spacing: 1.0
-  endurance-progress:
-    color: [255, 200, 40]
-    size: 0.7
-    max-particles-per-tick: 2000
   particles:
     spot: END_ROD
     progress: END_ROD
     goal: FLAME
     start: HAPPY_VILLAGER
-
-endurance-progress-particles:
-  interval-ticks: 5
-  view-distance: 32.0
-  max-particles-per-player: 8000
-  completed:
-    color: [70, 220, 90]
-    size: 0.6
-  next:
-    color: [255, 200, 40]
-    size: 0.8
-  future:
-    color: [40, 210, 255]
-    size: 0.6

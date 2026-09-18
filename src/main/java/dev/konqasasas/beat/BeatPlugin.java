@@ -44,6 +44,8 @@ import dev.konqasasas.beat.spigot.HighPracticeController;
 import dev.konqasasas.beat.spigot.HighCompetitionController;
 import dev.konqasasas.beat.spigot.TimeAttackController;
 import dev.konqasasas.beat.spigot.EnduranceController;
+import dev.konqasasas.beat.spigot.EnduranceMarkerService;
+import dev.konqasasas.beat.spigot.ParticipantProtectionListener;
 import dev.konqasasas.beat.spigot.SpigotWhitelistGateway;
 import dev.konqasasas.beat.spigot.LiveCompetitionClockService;
 import dev.konqasasas.beat.setup.MapSetupService;
@@ -62,6 +64,7 @@ public final class BeatPlugin extends JavaPlugin {
     private HighCompetitionController highCompetition;
     private TimeAttackController timeAttack;
     private EnduranceController endurance;
+    private EnduranceMarkerService enduranceMarkers;
     private PlayerVisibilityService playerVisibility;
     private ConfigurationFiles configurationFiles;
     private CompetitionSettingsService competitionSettings;
@@ -104,6 +107,7 @@ public final class BeatPlugin extends JavaPlugin {
 
             SelectionService selections = new SelectionService();
             SetupWand setupWand = new SetupWand(this);
+            enduranceMarkers = new EnduranceMarkerService(this, admins);
             MapValidationService mapValidation =
                     new MapValidationService(world -> getServer().getWorld(world) != null);
             SetupCommand setupCommand = new SetupCommand(
@@ -111,7 +115,7 @@ public final class BeatPlugin extends JavaPlugin {
                     new MapSetupService(maps),
                     selections,
                     setupWand,
-                    new RegionVisualizer(this, configurationFiles),
+                    new RegionVisualizer(this, configurationFiles, enduranceMarkers),
                     mapValidation,
                     getServer().getOnlineMode(),
                     configurationFiles);
@@ -125,7 +129,8 @@ public final class BeatPlugin extends JavaPlugin {
                     this, rosters, eventState, maps, mapValidation, taResults, configurationFiles, competitionSettings);
             EnduranceResultService enduranceResults=new EnduranceResultService(persistence.results());
             endurance=new EnduranceController(
-                    this,rosters,eventState,maps,mapValidation,enduranceResults,configurationFiles,competitionSettings);
+                    this,rosters,eventState,maps,mapValidation,enduranceResults,configurationFiles,
+                    competitionSettings,enduranceMarkers);
             OverallService overallService=new OverallService(persistence.results(),eventState);
             ResultAuditLog resultAudit=new ResultAuditLog(getDataFolder().toPath().resolve("logs/result-edits.log"));
             ResultEditingService resultEditor=new ResultEditingService(persistence.results(),maps,resultAudit);
@@ -178,9 +183,12 @@ public final class BeatPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(highCompetition, this);
             getServer().getPluginManager().registerEvents(timeAttack, this);
             getServer().getPluginManager().registerEvents(endurance,this);
+            getServer().getPluginManager().registerEvents(enduranceMarkers,this);
             getServer().getPluginManager().registerEvents(adminMenu,this);
             getServer().getPluginManager().registerEvents(playerVisibility,this);
             getServer().getPluginManager().registerEvents(new CompetitionSafetyListener(eventState),this);
+            getServer().getPluginManager().registerEvents(
+                    new ParticipantProtectionListener(rosters, admins), this);
             getServer().getPluginManager().registerEvents(
                     new GameModeMonitor(this, rosters, admins, eventState, configurationFiles), this);
             playerVisibility.start();
@@ -205,6 +213,7 @@ public final class BeatPlugin extends JavaPlugin {
         if (highCompetition != null) highCompetition.shutdown();
         if (timeAttack != null) timeAttack.shutdown();
         if(endurance!=null)endurance.shutdown();
+        if(enduranceMarkers!=null)enduranceMarkers.shutdown();
         getLogger().info(configurationFiles == null
                 ? "BEATを無効化しました。"
                 : configurationFiles.message("plugin.disabled", "BEATを無効化しました。"));

@@ -250,23 +250,20 @@ public final class SetupCommand {
             if (a.length == 3 && equals(a[2], "off")) {
                 boolean hidden = visualizer.hideEndurancePoints(player);
                 player.sendMessage(hidden
-                        ? msg("commands.setup.show-endurance-off", "[BEAT] 耐久ProgressのDUST表示を停止しました。")
-                        : msg("commands.setup.show-endurance-not-active", "[BEAT] 耐久ProgressのDUST表示は有効ではありません。"));
+                        ? msg("commands.setup.show-endurance-off", "[BEAT] 耐久Progress表示を停止しました。")
+                        : msg("commands.setup.show-endurance-not-active", "[BEAT] 耐久Progress表示は有効ではありません。"));
                 return true;
             }
-            List<EnduranceProgressPoint> points = resolveEndurancePoints(a);
+            Map<Integer, List<EnduranceProgressPoint>> points = resolveEndurancePoints(a);
             boolean persistent = a.length == 3 && equals(a[2], "all")
                     || a.length == 4 && equals(a[2], "progress") && equals(a[3], "all");
-            int displayed = visualizer.showEndurancePoints(player,
-                    persistent
-                            ? () -> maps.endurance().progresses().values().stream().flatMap(List::stream).toList()
-                            : () -> points,
-                    persistent);
+            int displayed = visualizer.showEndurancePoints(
+                    player, persistent ? () -> maps.endurance().progresses() : () -> points, persistent);
             if (displayed == 0) player.sendMessage(msg("commands.setup.show-empty", "[BEAT] 現在のワールドで表示できる地点がありません。"));
             else player.sendMessage(msg(persistent ? "commands.setup.show-point-count-persistent" : "commands.setup.show-point-count",
                     persistent
-                            ? "[BEAT] {count}件の地点をDUSTで継続表示します。停止: /beat setup show endurance off"
-                            : "[BEAT] {count}件の地点をDUSTで表示します（本人にのみ表示）。",
+                            ? "[BEAT] {count}件の地点を継続表示します。停止: /beat setup show endurance off"
+                            : "[BEAT] {count}件の地点を表示します（本人にのみ表示）。",
                     Map.of("count", displayed)));
             return true;
         }
@@ -296,21 +293,22 @@ public final class SetupCommand {
         return result;
     }
 
-    private List<EnduranceProgressPoint> resolveEndurancePoints(String[] a) {
+    private Map<Integer, List<EnduranceProgressPoint>> resolveEndurancePoints(String[] a) {
         if (a.length < 3) throw new IllegalArgumentException("使用例: /beat setup show endurance progress <number|all>");
         EnduranceMapConfig config = maps.endurance();
-        List<EnduranceProgressPoint> result;
+        Map<Integer, List<EnduranceProgressPoint>> result;
         if (equals(a[2], "all") && a.length == 3
                 || equals(a[2], "progress") && a.length == 4 && equals(a[3], "all")) {
-            result = config.progresses().values().stream().flatMap(List::stream).toList();
+            result = config.progresses();
         } else if (equals(a[2], "progress") && a.length == 4) {
             int number = positive(a[3], "Progress");
-            result = config.progresses().get(number);
-            if (result == null) throw new IllegalArgumentException("Progress " + number + " は未設定です");
+            List<EnduranceProgressPoint> points = config.progresses().get(number);
+            if (points == null) throw new IllegalArgumentException("Progress " + number + " は未設定です");
+            result = Map.of(number, points);
         } else {
             throw new IllegalArgumentException("使用例: /beat setup show endurance progress <number|all>");
         }
-        if (result.isEmpty()) throw new IllegalArgumentException("対象地点が設定されていません");
+        if (result.values().stream().allMatch(List::isEmpty)) throw new IllegalArgumentException("対象地点が設定されていません");
         return result;
     }
 

@@ -13,7 +13,6 @@ countdowns:
 ui-update-ticks:
   action-bar: 10
   boss-bar: 10
-  scoreboard: 20
   player-visibility: 20
 
 confirmation-timeouts:

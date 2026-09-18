@@ -102,6 +102,9 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (session.contains(player.getUniqueId())) activateAtStart(player);
         }
+        var next = nextElimination();
+        display.updateImmediately(elapsedTick, totalTicks, next == null ? null : next.tick(),
+                next == null ? null : next.requiredCourse(), session);
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
 
@@ -123,7 +126,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         evaluateElimination(previous, elapsedTick);
         rankingDirty = true;
         var next = nextElimination();
-        display.update(elapsedTick, totalTicks, next == null ? null : next.tick(),
+        display.updateImmediately(elapsedTick, totalTicks, next == null ? null : next.tick(),
                 next == null ? null : next.requiredCourse(), session);
     }
 

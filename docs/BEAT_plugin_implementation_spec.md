@@ -453,6 +453,12 @@ Split / Spot / Progress
 - 参加者同士の collision を無効化
 - 競技進行中のアイテムドロップを無効化
 
+登録参加者には大会状態にかかわらず、以下のマップ保護を常時適用する。運営は対象外。
+
+- 自分の `PLAYER` / `CRAFTING` Inventory以外の `InventoryOpenEvent` をキャンセル
+- `DECORATED_POT` と全木材の棚（`*_SHELF`）のBlock使用だけを拒否し、手持ちアイテム側の処理は妨げない
+- `PlayerSignOpenEvent` と `SignChangeEvent` をキャンセル
+
 運営の Inventory は変更しない。
 
 ---
@@ -709,6 +715,9 @@ HIGH DIFFICULTY
 ```
 
 最大10人。
+
+Sidebar は競技ごとに1個の Scoreboard を全参加者で共有する。
+毎tick更新要否を確認し、順位または表示記録（Point）が変化した場合だけ行を差分更新する。
 
 Tab:
 
@@ -1021,6 +1030,9 @@ Time 31.95 ｜ PB 31.80 ｜ +0.15
 
 上位最大10人。
 
+競技用 Scoreboard は全参加者で1個を共有する。
+毎tick更新要否を確認し、順位または表示記録（PB）が変化した場合だけ行を差分更新する。
+
 ```text
 TIME ATTACK
 
@@ -1160,13 +1172,21 @@ Progress 088 = Goal
 
 同 Progress の複数到達では最初の到達 tick を保持する。
 
-プレイ中は各地点を半径 0.25 block の `DUST` 球としてプレイヤーごとに表示する。
+プレイ中は各地点を、一辺0.5 blockの小型 `BlockDisplay` と、その上の `TextDisplay` で表示する。
+TextDisplayは `P001` 形式の3桁Progress番号を白文字で表示する。
 
-- 取得済み: 緑
-- 次に取得する Progress: 黄
-- それより先: 水色
+- 取得済み: `LIME_WOOL`
+- 次に取得する Progress: `YELLOW_WOOL`
+- それより先: `LIGHT_BLUE_WOOL`
 
-取得瞬間だけの追加Particleは表示しない。セットアップ確認表示も同じ半径のDUST球を使う。
+TextDisplayは全員で共有し、BlockDisplayはプレイヤーごとに該当する色だけを表示する。
+地点は読み込まれたChunkにだけ生成し、ワールドへ永続保存しない。セットアップ確認表示も
+同じBlockDisplayとTextDisplayを使用し、操作者にだけ黄色で表示する。
+
+耐久競技中は、`admins.json` 登録者にも全ProgressのTextDisplayと `LIGHT_BLUE_WOOL` を表示する。
+運営表示はProgress取得状況によって変色させず、競技中は常に空色とする。競技中に接続した運営にも
+自動表示し、既存のDisplay Entityを共有して運営専用Entityは追加しない。
+脱落した参加者には従来どおりProgress表示を行わない。
 
 ## 13.3 Zone
 
@@ -1293,6 +1313,9 @@ Goal 直後の TP / GameMode 変更はプラグインでは行わない。
 完走者だけ `GOAL` 表記にはしない。
 
 Sidebar は最大10人。
+
+競技用 Scoreboard は全参加者で1個を共有する。
+毎tick更新要否を確認し、順位または表示記録（Progress）が変化した場合だけ行を差分更新する。
 
 Zone 区切りで表示色を変更する。
 
@@ -1926,8 +1949,9 @@ Split 内部構造は可変個数対応。
 /beat setup show ta all
 ```
 
-Particle はコマンド実行者本人にのみ表示。
-耐久の `all` は追加地点も反映しながら継続表示し、`off` で停止する。
+高難易度とTAのParticleは、コマンド実行者本人にのみ表示する。
+耐久は黄色の小型BlockDisplayと白いProgress番号のTextDisplayを、コマンド実行者本人にのみ表示する。
+耐久の `all` は追加・変更・削除した地点を約1秒ごとに反映しながら継続表示し、`off` で停止する。
 
 大量表示時:
 
@@ -1937,6 +1961,9 @@ Particle はコマンド実行者本人にのみ表示。
 - 表示時間上限
 - 種類ごとに色/Particleを分ける
 - 設定可能
+
+上記のParticle制限は高難易度とTAに適用する。耐久Displayは読み込み済みChunkにだけ生成し、
+Chunk unload時に削除する。ワールドへ永続保存しない。
 
 ## 22.2 info
 

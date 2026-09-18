@@ -3,28 +3,25 @@ package dev.konqasasas.beat.setup;
 import dev.konqasasas.beat.BeatPlugin;
 import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.map.EnduranceProgressPoint;
-import dev.konqasasas.beat.ui.DustSphereRenderer;
+import dev.konqasasas.beat.spigot.EnduranceMarkerService;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import org.bukkit.Particle;
-import org.bukkit.Color;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 public final class RegionVisualizer {
     private final BeatPlugin plugin;
     private final ConfigurationFiles configuration;
-    private final Map<UUID, BukkitTask> enduranceDisplays = new ConcurrentHashMap<>();
+    private final EnduranceMarkerService markers;
 
-    public RegionVisualizer(BeatPlugin plugin, ConfigurationFiles configuration) {
+    public RegionVisualizer(BeatPlugin plugin, ConfigurationFiles configuration, EnduranceMarkerService markers) {
         this.plugin = plugin;
         this.configuration = configuration;
+        this.markers = markers;
     }
 
     public int show(Player player, List<RegionVisualization> regions) {
@@ -64,59 +61,15 @@ public final class RegionVisualizer {
                 .filter(region -> region.world().equals(player.getWorld().getName())).toList().size();
     }
 
-    public int showEndurancePoints(Player player, Supplier<List<EnduranceProgressPoint>> source, boolean persistent) {
+    public int showEndurancePoints(Player player,
+            Supplier<Map<Integer, List<EnduranceProgressPoint>>> points,
+            boolean persistent) {
         int displayTicks = configuration.styleInt("setup-visualization.display-ticks", 100, 5, 1200);
-        int intervalTicks = configuration.styleInt("setup-visualization.interval-ticks", 5, 1, 100);
-        int particleLimit = configuration.styleInt(
-                "setup-visualization.endurance-progress.max-particles-per-tick",
-                2000,
-                DustSphereRenderer.PARTICLES_PER_SPHERE,
-                20000);
-        int pointsPerTick = Math.max(1, particleLimit / DustSphereRenderer.PARTICLES_PER_SPHERE);
-        Particle.DustOptions dust = configuration.dustOptions(
-                "setup-visualization.endurance-progress", Color.fromRGB(255, 200, 40), 0.7F);
-        hideEndurancePoints(player);
-        List<EnduranceProgressPoint> initial = visibleEndurancePoints(player, source.get());
-        if (initial.isEmpty()) return 0;
-
-        BukkitTask task = new BukkitRunnable() {
-            private int elapsed;
-            private int offset;
-
-            @Override
-            public void run() {
-                if (!player.isOnline() || !persistent && elapsed >= displayTicks) {
-                    enduranceDisplays.remove(player.getUniqueId());
-                    cancel();
-                    return;
-                }
-                List<EnduranceProgressPoint> points = visibleEndurancePoints(player, source.get());
-                if (!points.isEmpty()) {
-                    int count = Math.min(pointsPerTick, points.size());
-                    for (int index = 0; index < count; index++) {
-                        DustSphereRenderer.spawn(player, points.get((offset + index) % points.size()), dust);
-                    }
-                    offset = (offset + count) % points.size();
-                }
-                elapsed += intervalTicks;
-            }
-        }.runTaskTimer(plugin, 0L, intervalTicks);
-        enduranceDisplays.put(player.getUniqueId(), task);
-        return initial.size();
+        return markers.showSetup(player, points, persistent, displayTicks);
     }
 
     public boolean hideEndurancePoints(Player player) {
-        BukkitTask task = enduranceDisplays.remove(player.getUniqueId());
-        if (task == null) return false;
-        task.cancel();
-        return true;
-    }
-
-    private static List<EnduranceProgressPoint> visibleEndurancePoints(
-            Player player, List<EnduranceProgressPoint> points) {
-        return points.stream()
-                .filter(point -> point.world().equals(player.getWorld().getName()))
-                .toList();
+        return markers.hideSetup(player);
     }
 
     public Particle particle(String configuredName, Particle fallback) {

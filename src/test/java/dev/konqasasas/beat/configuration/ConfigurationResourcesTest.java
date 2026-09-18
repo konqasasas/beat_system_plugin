@@ -65,7 +65,7 @@ class ConfigurationResourcesTest {
         }
         for (String configPath : new String[] {
                 "countdowns.competition-start-ticks", "ui-update-ticks.action-bar",
-                "ui-update-ticks.boss-bar", "ui-update-ticks.scoreboard", "ui-update-ticks.player-visibility",
+                "ui-update-ticks.boss-bar", "ui-update-ticks.player-visibility",
                 "confirmation-timeouts.dangerous-action-millis",
                 "high-difficulty.practice-items.checkpoint.slot",
                 "high-difficulty.practice-items.flight.slot"

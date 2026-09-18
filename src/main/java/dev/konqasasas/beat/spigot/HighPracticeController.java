@@ -242,7 +242,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
             enterPrepare();
             return;
         }
-        updatePracticeBossBar();
+        if (bossBarUpdateDue()) updatePracticeBossBar();
         announcePracticeEndingIfDue();
     }
 
@@ -293,7 +293,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
             session = null;
             return;
         }
-        updatePrepareBossBar();
+        if (bossBarUpdateDue()) updatePrepareBossBar();
         long remaining = session.remainingTicks();
         if (remaining > 0 && remaining <= 200 && remaining % 20 == 0) {
             announceCountdown(
@@ -312,6 +312,10 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                 "ui.bossbar.high-prepare",
                 "準備 残り時間 {remaining}",
                 java.util.Map.of("remaining", formatTicks(remaining))));
+    }
+
+    private boolean bossBarUpdateDue() {
+        return session.phaseTick() % configuration.configInt("ui-update-ticks.boss-bar", 10, 1, 1200) == 0;
     }
 
     private void restoreForCurrentPhase(Player player) {

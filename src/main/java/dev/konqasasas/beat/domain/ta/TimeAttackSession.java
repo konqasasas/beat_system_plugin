@@ -10,6 +10,7 @@ import java.util.*;
 public final class TimeAttackSession {
     private final Map<UUID, State> players = new LinkedHashMap<>();
     private long sequence;
+    private List<RankedEntry<TimeAttackRecord>> cachedRankings;
 
     public TimeAttackSession(Map<UUID, String> names) {
         names.forEach((id, name) -> players.put(id, new State(new Competitor(id, name))));
@@ -29,6 +30,7 @@ public final class TimeAttackSession {
         int oldRank=rank(id); long elapsed=tick-s.startTick;
         var update=s.record.recordGoal(elapsed,tick,++sequence,s.splits.get(1),s.splits.get(2));
         s.running=false; s.displayReset=true;
+        if (update.updated()) cachedRankings=null;
         int newRank=rank(id); return new GoalResult(true,elapsed,update.updated(),oldRank,newRank,update.previousBestTicks(),update.currentBestTicks());
     }
     public void markRestarted(UUID id) { requireActive(id).displayReset=true; }
@@ -43,7 +45,7 @@ public final class TimeAttackSession {
         return List.copyOf(out);
     }
     public void finish(){players.values().forEach(s->{s.active=false;s.running=false;s.record.freeze();});}
-    public List<RankedEntry<TimeAttackRecord>> rankings(){return CompetitionRankings.timeAttack(players.values().stream().map(s->new RankingEntry<>(s.competitor,s.record)).toList());}
+    public List<RankedEntry<TimeAttackRecord>> rankings(){if(cachedRankings==null)cachedRankings=CompetitionRankings.timeAttack(players.values().stream().map(s->new RankingEntry<>(s.competitor,s.record)).toList());return cachedRankings;}
     public int rank(UUID id){return rankings().stream().filter(e->e.competitor().uuid().equals(id)).findFirst().orElseThrow().rank();}
     public TimeAttackRecord record(UUID id){return require(id).record;}
     public Competitor competitor(UUID id){return require(id).competitor;}

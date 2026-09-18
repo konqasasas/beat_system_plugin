@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.List;
 import org.bukkit.ChatColor;
-import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
@@ -134,16 +133,6 @@ public final class ConfigurationFiles {
         } catch (IllegalArgumentException exception) {
             return fallback;
         }
-    }
-
-    public Particle.DustOptions dustOptions(String path, Color fallbackColor, float fallbackSize) {
-        List<Integer> rgb = styles.getIntegerList(path + ".color");
-        Color color = fallbackColor;
-        if (rgb.size() == 3 && rgb.stream().allMatch(value -> value >= 0 && value <= 255)) {
-            color = Color.fromRGB(rgb.get(0), rgb.get(1), rgb.get(2));
-        }
-        float size = (float) Math.max(0.01D, Math.min(4D, styles.getDouble(path + ".size", fallbackSize)));
-        return new Particle.DustOptions(color, size);
     }
 
     public BarColor barColor(String path, BarColor fallback) {

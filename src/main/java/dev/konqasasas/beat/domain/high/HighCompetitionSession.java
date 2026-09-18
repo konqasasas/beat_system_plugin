@@ -14,6 +14,7 @@ import java.util.UUID;
 
 public final class HighCompetitionSession {
     private final Map<UUID, PlayerState> players = new LinkedHashMap<>();
+    private List<RankedEntry<HighDifficultyRecord>> cachedRankings;
 
     public HighCompetitionSession(Map<UUID, String> participantNames, HighDifficultyRules rules) {
         Objects.requireNonNull(participantNames, "participantNames");
@@ -35,6 +36,7 @@ public final class HighCompetitionSession {
         PlayerState state = requireActive(playerId);
         int previousRank = rank(playerId);
         HighDifficultyRecord.ScoreUpdate score = state.record.reachSpot(course, spot, tick);
+        if (score.changed()) cachedRankings = null;
         int currentRank = rank(playerId);
         return new ScoreResult(score, previousRank, currentRank, false);
     }
@@ -44,6 +46,7 @@ public final class HighCompetitionSession {
         int previousRank = rank(playerId);
         HighDifficultyRecord.ScoreUpdate score = state.record.reachGoal(course, tick);
         if (score.changed()) state.currentCourse = Math.max(state.currentCourse, Math.min(5, course + 1));
+        if (score.changed()) cachedRankings = null;
         int currentRank = rank(playerId);
         return new ScoreResult(
                 score, previousRank, currentRank,
@@ -75,8 +78,11 @@ public final class HighCompetitionSession {
     }
 
     public List<RankedEntry<HighDifficultyRecord>> rankings() {
-        return CompetitionRankings.highDifficulty(players.values().stream()
-                .map(state -> new RankingEntry<>(state.competitor, state.record)).toList());
+        if (cachedRankings == null) {
+            cachedRankings = CompetitionRankings.highDifficulty(players.values().stream()
+                    .map(state -> new RankingEntry<>(state.competitor, state.record)).toList());
+        }
+        return cachedRankings;
     }
 
     public int rank(UUID playerId) {
