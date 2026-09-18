@@ -3,6 +3,7 @@ package dev.konqasasas.beat.spigot;
 import dev.konqasasas.beat.BeatPlugin;
 import dev.konqasasas.beat.application.EventStateService;
 import dev.konqasasas.beat.application.HighResultService;
+import dev.konqasasas.beat.application.AdminAuthorizer;
 import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.configuration.CompetitionSettingsService;
 import dev.konqasasas.beat.domain.high.HighCompetitionSession;
@@ -36,6 +37,7 @@ import org.bukkit.util.Vector;
 public final class HighCompetitionController implements Listener, LiveCompetitionClock {
     private final BeatPlugin plugin;
     private final RosterService rosters;
+    private final AdminAuthorizer admins;
     private final EventStateService eventState;
     private final MapConfigurationService maps;
     private final HighResultService results;
@@ -43,6 +45,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private final HighRunningItem returnItem;
     private final ConfigurationFiles configuration;
     private final CompetitionSettingsService settings;
+    private final PlayerCollisionService collisions;
     private HighCompetitionSession session;
     private HighCompetitionDisplay display;
     private BukkitTask task;
@@ -52,12 +55,13 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private List<Integer> eliminationTicks = List.of();
     private final java.util.Set<Integer> processedEliminations = new java.util.HashSet<>();
 
-    public HighCompetitionController(BeatPlugin plugin, RosterService rosters,
+    public HighCompetitionController(BeatPlugin plugin, RosterService rosters, AdminAuthorizer admins,
             EventStateService eventState, MapConfigurationService maps, HighResultService results,
             MapValidationService validation, ConfigurationFiles configuration,
-            CompetitionSettingsService settings) {
+            CompetitionSettingsService settings, PlayerCollisionService collisions) {
         this.plugin = plugin;
         this.rosters = rosters;
+        this.admins = admins;
         this.eventState = eventState;
         this.maps = maps;
         this.results = results;
@@ -65,6 +69,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         this.returnItem = new HighRunningItem(plugin);
         this.configuration = configuration;
         this.settings = settings;
+        this.collisions = collisions;
     }
 
     public synchronized void startFromPrepare() throws PersistenceException {
@@ -98,9 +103,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         elapsedTick = 0;
         rankingDirty = true;
         processedEliminations.clear();
-        display = new HighCompetitionDisplay(configuration);
+        display = new HighCompetitionDisplay(configuration, collisions);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (session.contains(player.getUniqueId())) activateAtStart(player);
+            else if (admins.isAdmin(player.getUniqueId())) display.add(player);
         }
         var next = nextElimination();
         display.updateImmediately(elapsedTick, totalTicks, next == null ? null : next.tick(),
@@ -158,8 +164,14 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     public void onJoin(PlayerJoinEvent event) {
         HighCompetitionSession current = session;
         Player player = event.getPlayer();
-        if (current == null || !current.contains(player.getUniqueId())) return;
-        Bukkit.getScheduler().runTask(plugin, () -> restore(player));
+        if (current == null) return;
+        if (current.contains(player.getUniqueId())) {
+            Bukkit.getScheduler().runTask(plugin, () -> restore(player));
+        } else if (admins.isAdmin(player.getUniqueId())) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (display != null && player.isOnline()) display.add(player);
+            });
+        }
     }
 
     public synchronized void shutdown() {
@@ -168,7 +180,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         if (display != null && session != null) display.clear(session);
         if (session != null) {
             for (Player player : Bukkit.getOnlinePlayers()) {
-                if (session.contains(player.getUniqueId())) { returnItem.remove(player); CompetitionPlayerState.release(player); }
+                if (session.contains(player.getUniqueId())) returnItem.remove(player);
             }
         }
         display = null;
@@ -320,7 +332,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
             long remaining = eliminationTicks.get(index) - elapsedTick;
             if (remaining >= 20 && remaining <= 200 && remaining % 20 == 0) {
                 int requiredCourse = index + 2;
-                forParticipants(player -> {
+                forAudience(player -> {
                     player.sendMessage(configuration.message(
                             "notifications.high.elimination-warning",
                             "[BEAT] コース{course}未到達者脱落まで... {seconds}",
@@ -334,7 +346,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private void announceTimeLimit() {
         long remaining = totalTicks - elapsedTick;
         if (remaining > 0 && remaining <= 200 && remaining % 20 == 0) {
-            forParticipants(player -> {
+            forAudience(player -> {
                 player.sendMessage(configuration.message(
                         "notifications.high.time-limit-countdown",
                         "[BEAT] 制限時間終了まで... {seconds}",
@@ -342,7 +354,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                 playConfigured(player, "sounds.countdown", Sound.BLOCK_NOTE_BLOCK_HAT, 1F, 1F);
             });
         } else if (remaining == 0) {
-            forParticipants(player -> {
+            forAudience(player -> {
                 player.sendMessage(configuration.message(
                         "notifications.high.time-limit-ended", "[BEAT] 制限時間終了！"));
                 playConfigured(player, "sounds.time-limit-end", Sound.BLOCK_NOTE_BLOCK_BASS, 1F, 0.5F);
@@ -367,7 +379,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                     "notifications.high.elimination",
                     "[BEAT] コース{course}未到達者脱落！",
                     Map.of("course", requiredCourse)));
-            forParticipants(player -> playConfigured(
+            forAudience(player -> playConfigured(
                     player, "sounds.elimination", Sound.BLOCK_NOTE_BLOCK_BASS, 1F, 0.7F));
             var eliminatedPlayers = session.eliminateBelowCourse(requiredCourse);
             rankingDirty = true;
@@ -448,6 +460,12 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
 
     private void forParticipants(java.util.function.Consumer<Player> action) {
         for (Player player : Bukkit.getOnlinePlayers()) if (session.contains(player.getUniqueId())) action.accept(player);
+    }
+
+    private void forAudience(java.util.function.Consumer<Player> action) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (session.contains(player.getUniqueId()) || admins.isAdmin(player.getUniqueId())) action.accept(player);
+        }
     }
 
     private static MapLocation mapLocation(Player player) {

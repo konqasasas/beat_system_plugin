@@ -39,7 +39,7 @@ class ConfigurationResourcesTest {
                 "high.time-limit-countdown", "high.time-limit-ended",
                 "time-attack.countdown", "time-attack.personal-best", "time-attack.time-limit-countdown", "time-attack.eliminated",
                 "time-attack.time-limit-ended",
-                "time-attack.finished", "endurance.countdown", "endurance.goal",
+                "time-attack.finished", "endurance.countdown", "endurance.goal", "endurance.zone-broadcast",
                 "endurance.time-limit-countdown", "endurance.time-limit-ended",
                 "endurance.eliminated", "endurance.finished"
         }) {

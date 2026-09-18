@@ -48,6 +48,7 @@ import dev.konqasasas.beat.spigot.EnduranceMarkerService;
 import dev.konqasasas.beat.spigot.ParticipantProtectionListener;
 import dev.konqasasas.beat.spigot.SpigotWhitelistGateway;
 import dev.konqasasas.beat.spigot.LiveCompetitionClockService;
+import dev.konqasasas.beat.spigot.PlayerCollisionService;
 import dev.konqasasas.beat.setup.MapSetupService;
 import dev.konqasasas.beat.setup.RegionVisualizer;
 import dev.konqasasas.beat.setup.SelectionService;
@@ -66,6 +67,7 @@ public final class BeatPlugin extends JavaPlugin {
     private EnduranceController endurance;
     private EnduranceMarkerService enduranceMarkers;
     private PlayerVisibilityService playerVisibility;
+    private PlayerCollisionService playerCollisions;
     private ConfigurationFiles configurationFiles;
     private CompetitionSettingsService competitionSettings;
 
@@ -101,13 +103,15 @@ public final class BeatPlugin extends JavaPlugin {
             }
             ParticipantService participants = new ParticipantService(rosters, eventState);
             AdminAuthorizer admins = new AdminAuthorizer(rosters);
+            playerCollisions = new PlayerCollisionService(this);
+            playerCollisions.start();
             playerVisibility = new PlayerVisibilityService(this,rosters,admins,configurationFiles);
             WhitelistService whitelists = new WhitelistService(
                     rosters, eventState, new SpigotWhitelistGateway(getServer()));
 
             SelectionService selections = new SelectionService();
             SetupWand setupWand = new SetupWand(this);
-            enduranceMarkers = new EnduranceMarkerService(this, admins);
+            enduranceMarkers = new EnduranceMarkerService(this, admins, rosters);
             MapValidationService mapValidation =
                     new MapValidationService(world -> getServer().getWorld(world) != null);
             SetupCommand setupCommand = new SetupCommand(
@@ -121,16 +125,19 @@ public final class BeatPlugin extends JavaPlugin {
                     configurationFiles);
             HighResultService highResults = new HighResultService(persistence.results());
             highCompetition = new HighCompetitionController(
-                    this, rosters, eventState, maps, highResults, mapValidation, configurationFiles, competitionSettings);
+                    this, rosters, admins, eventState, maps, highResults, mapValidation,
+                    configurationFiles, competitionSettings, playerCollisions);
             highPractice = new HighPracticeController(
-                    this, rosters, eventState, maps, mapValidation, highCompetition, configurationFiles, competitionSettings);
+                    this, rosters, admins, eventState, maps, mapValidation, highCompetition,
+                    configurationFiles, competitionSettings);
             TimeAttackResultService taResults = new TimeAttackResultService(persistence.results());
             timeAttack = new TimeAttackController(
-                    this, rosters, eventState, maps, mapValidation, taResults, configurationFiles, competitionSettings);
+                    this, rosters, admins, eventState, maps, mapValidation, taResults,
+                    configurationFiles, competitionSettings, playerCollisions);
             EnduranceResultService enduranceResults=new EnduranceResultService(persistence.results());
             endurance=new EnduranceController(
-                    this,rosters,eventState,maps,mapValidation,enduranceResults,configurationFiles,
-                    competitionSettings,enduranceMarkers);
+                    this,rosters,admins,eventState,maps,mapValidation,enduranceResults,configurationFiles,
+                    competitionSettings,enduranceMarkers,playerCollisions);
             OverallService overallService=new OverallService(persistence.results(),eventState);
             ResultAuditLog resultAudit=new ResultAuditLog(getDataFolder().toPath().resolve("logs/result-edits.log"));
             ResultEditingService resultEditor=new ResultEditingService(persistence.results(),maps,resultAudit);
@@ -186,6 +193,7 @@ public final class BeatPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(enduranceMarkers,this);
             getServer().getPluginManager().registerEvents(adminMenu,this);
             getServer().getPluginManager().registerEvents(playerVisibility,this);
+            getServer().getPluginManager().registerEvents(playerCollisions,this);
             getServer().getPluginManager().registerEvents(new CompetitionSafetyListener(eventState),this);
             getServer().getPluginManager().registerEvents(
                     new ParticipantProtectionListener(rosters, admins), this);
@@ -214,6 +222,7 @@ public final class BeatPlugin extends JavaPlugin {
         if (timeAttack != null) timeAttack.shutdown();
         if(endurance!=null)endurance.shutdown();
         if(enduranceMarkers!=null)enduranceMarkers.shutdown();
+        if(playerCollisions!=null)playerCollisions.shutdown();
         getLogger().info(configurationFiles == null
                 ? "BEATを無効化しました。"
                 : configurationFiles.message("plugin.disabled", "BEATを無効化しました。"));

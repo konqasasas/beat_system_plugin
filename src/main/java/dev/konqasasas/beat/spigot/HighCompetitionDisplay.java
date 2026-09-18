@@ -4,6 +4,8 @@ import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.domain.high.HighCompetitionSession;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -19,18 +21,23 @@ public final class HighCompetitionDisplay {
     private final SharedRankingBoard rankingBoard;
     private final ActionBarFeedbackState feedback = new ActionBarFeedbackState();
     private final Map<UUID, String> renderedTabRows = new HashMap<>();
+    private final Set<UUID> viewers = new HashSet<>();
 
-    public HighCompetitionDisplay(ConfigurationFiles configuration) {
+    public HighCompetitionDisplay(ConfigurationFiles configuration, PlayerCollisionService collisions) {
         this.configuration = configuration;
         this.bossBar = Bukkit.createBossBar(
                 configuration.message("ui.bossbar.high-title", "HIGH DIFFICULTY"),
                 configuration.barColor("boss-bars.high", BarColor.BLUE),
                 configuration.barStyle("boss-bars.high", BarStyle.SOLID));
         this.rankingBoard = new SharedRankingBoard(
-                "beat_high", configuration.message("ui.scoreboard.high-title", "HIGH DIFFICULTY"));
+                "beat_high", configuration.message("ui.scoreboard.high-title", "HIGH DIFFICULTY"), collisions);
     }
 
-    public void add(Player player) { bossBar.addPlayer(player); rankingBoard.show(player); }
+    public void add(Player player) {
+        viewers.add(player.getUniqueId());
+        bossBar.addPlayer(player);
+        rankingBoard.show(player);
+    }
 
     public void update(long tick, long totalTicks, Long nextEliminationTick, Integer requiredCourse,
             HighCompetitionSession session) {
@@ -88,7 +95,7 @@ public final class HighCompetitionDisplay {
                         "rank", "%02d".formatted(entry.rank()), "points", "%03d".formatted(entry.record().points()),
                         "player", trim(entry.competitor().tournamentName(), 16)))).toList());
         for (Player viewer : Bukkit.getOnlinePlayers()) {
-            if (session.contains(viewer.getUniqueId())) rankingBoard.show(viewer);
+            if (viewers.contains(viewer.getUniqueId())) rankingBoard.show(viewer);
         }
         for (var entry : rankings) {
             Player player = Bukkit.getPlayer(entry.competitor().uuid());
@@ -106,16 +113,17 @@ public final class HighCompetitionDisplay {
     public void clear(HighCompetitionSession session) {
         bossBar.removeAll();
         rankingBoard.clear();
+        rankingBoard.hideAll();
         feedback.clear();
         renderedTabRows.clear();
-        var manager = Bukkit.getScoreboardManager();
         for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!viewers.contains(player.getUniqueId())) continue;
             if (!session.contains(player.getUniqueId())) continue;
             player.setPlayerListName(player.getName());
             player.setPlayerListOrder(0);
-            if (manager != null) player.setScoreboard(manager.getMainScoreboard());
             actionBar(player, "");
         }
+        viewers.clear();
     }
 
     private static void actionBar(Player player, String message) {

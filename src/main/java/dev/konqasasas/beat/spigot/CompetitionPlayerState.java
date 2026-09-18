@@ -13,7 +13,6 @@ public final class CompetitionPlayerState {
         if(maxHealth!=null)player.setHealth(maxHealth.getValue());
         player.setFoodLevel(20);player.setSaturation(20);player.setFireTicks(0);player.setVelocity(new Vector());
         for(var effect:player.getActivePotionEffects())player.removePotionEffect(effect.getType());
-        player.getInventory().clear();player.setCollidable(false);
+        player.getInventory().clear();
     }
-    public static void release(Player player){player.setCollidable(true);}
 }

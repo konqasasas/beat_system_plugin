@@ -469,6 +469,7 @@ notifications:
     goal: "GOAL! ｜ {time} ｜ #{rank}"
     goal-broadcast: "[BEAT] {player} が完走！ {time} (#{rank})"
     zone: "Zone {zone} 到達 ｜ Progress {progress} ｜ #{rank}"
+    zone-broadcast: "[BEAT] {player} がZone {zone}到達！ Progress {progress} (#{rank})"
     progress: "Progress {progress} 到達 ｜ #{rank}"
     rank-update: "[BEAT] {player} が更新: Progress {progress} (#{rank})"
     time-limit-countdown: "[BEAT] 制限時間終了まで... {seconds}"

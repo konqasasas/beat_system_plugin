@@ -4,6 +4,7 @@ import dev.konqasasas.beat.BeatPlugin;
 import dev.konqasasas.beat.application.AdminAuthorizer;
 import dev.konqasasas.beat.map.EnduranceProgressIndex;
 import dev.konqasasas.beat.map.EnduranceProgressPoint;
+import dev.konqasasas.beat.roster.RosterService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,15 +42,17 @@ public final class EnduranceMarkerService implements Listener {
 
     private final BeatPlugin plugin;
     private final AdminAuthorizer admins;
+    private final RosterService rosters;
     private final NamespacedKey markerKey;
     private EnduranceProgressIndex competitionIndex;
     private final Map<EnduranceProgressIndex.Entry, CompetitionMarker> competitionMarkers = new HashMap<>();
     private final Map<UUID, Integer> competitionProgress = new HashMap<>();
     private final Map<UUID, SetupSession> setupSessions = new HashMap<>();
 
-    public EnduranceMarkerService(BeatPlugin plugin, AdminAuthorizer admins) {
+    public EnduranceMarkerService(BeatPlugin plugin, AdminAuthorizer admins, RosterService rosters) {
         this.plugin = plugin;
         this.admins = admins;
+        this.rosters = rosters;
         markerKey = new NamespacedKey(plugin, "endurance-progress-marker");
         cleanupLoadedMarkers();
     }
@@ -130,10 +133,10 @@ public final class EnduranceMarkerService implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        if (competitionIndex == null || !admins.isAdmin(event.getPlayer().getUniqueId())) return;
+        if (competitionIndex == null || !adminOnly(event.getPlayer().getUniqueId())) return;
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (competitionIndex != null && event.getPlayer().isOnline()
-                    && admins.isAdmin(event.getPlayer().getUniqueId())) {
+                    && adminOnly(event.getPlayer().getUniqueId())) {
                 competitionMarkers.values().forEach(marker -> marker.show(event.getPlayer(), MarkerState.FUTURE));
             }
         });
@@ -190,8 +193,12 @@ public final class EnduranceMarkerService implements Listener {
             if (player != null) marker.show(player, state(entry.progress(), progress));
         });
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (admins.isAdmin(player.getUniqueId())) marker.show(player, MarkerState.FUTURE);
+            if (adminOnly(player.getUniqueId())) marker.show(player, MarkerState.FUTURE);
         }
+    }
+
+    private boolean adminOnly(UUID playerId) {
+        return admins.isAdmin(playerId) && rosters.current().participant(playerId).isEmpty();
     }
 
     private void spawnSetupIfLoaded(Player player, SetupSession session, EnduranceProgressIndex.Entry entry) {

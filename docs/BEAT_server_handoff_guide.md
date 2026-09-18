@@ -138,23 +138,28 @@ BEATを本番サーバーで動かすだけなら、ソースコードやGradle�
 3. 必要に応じてMultiverse-CoreとWorldEditを `plugins/` に配置する。
 4. 受け取った `plugins/BEAT/` を本番サーバーの同じ場所へ配置する。
 5. 受け取ったワールドをサーバールートへ配置する。
-6. `server.properties` の `level-name` をロビーワールドに設定する。
+6. `server.properties` の `level-name`、`gamemode`、`spawn-protection` を設定する。
 7. サーバーを起動する。
 8. Multiverse-Coreで各競技ワールドをインポートする。
-9. `/plugins` でBEATとProtocolLibが有効になっていることを確認する。
-10. `/beat reload` を実行する。
-11. `/beat setup validate all` が成功することを確認する。
-12. `/beat settings show` で本番用の競技設定になっていることを確認する。
-13. `/beat players` で参加者が正しく読み込まれていることを確認する。
-14. `/beat whitelist admins` を実行し、運営だけが入れる状態にする。
+9. ゲーム内で `/mv config enforce-gamemode false` を実行する。
+10. `/plugins` でBEATとProtocolLibが有効になっていることを確認する。
+11. `/beat reload` を実行する。
+12. `/beat setup validate all` が成功することを確認する。
+13. `/beat settings show` で本番用の競技設定になっていることを確認する。
+14. `/beat players` で参加者が正しく読み込まれていることを確認する。
+15. `/beat whitelist admins` を実行し、運営だけが入れる状態にする。
 
 `server.properties` には次のように設定します。
 
 ```properties
 level-name=0_lobby
+gamemode=adventure
+spawn-protection=0
 ```
 
 `0_lobby` フォルダーをサーバールートへ配置してから起動してください。これにより、サーバーのデフォルトワールドとしてロビーが読み込まれます。
+
+`gamemode=adventure` により、参加者のデフォルトゲームモードをアドベンチャーにします。`spawn-protection=0` により、スポーン保護がBEATのアイテム操作などを妨げないようにします。これらの変更は、サーバーを停止した状態で行ってください。
 
 Multiverse-Coreでワールドをインポートする場合の例です。
 
@@ -163,6 +168,14 @@ Multiverse-Coreでワールドをインポートする場合の例です。
 ```
 
 ワールドの環境に応じて、`normal` の部分は適切な種類を指定してください。
+
+各ワールドをインポートした後、ゲーム内で次を実行します。
+
+```text
+/mv config enforce-gamemode false
+```
+
+これにより、Multiverse-Coreによるワールドごとのゲームモード強制を無効にします。
 
 ワールド名は、BEATのマップ設定に記録された名前と完全に一致させます。配置後にValidationが失敗した場合は、最初に次を確認してください。
 

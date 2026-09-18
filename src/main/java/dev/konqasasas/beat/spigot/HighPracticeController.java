@@ -2,6 +2,7 @@ package dev.konqasasas.beat.spigot;
 
 import dev.konqasasas.beat.BeatPlugin;
 import dev.konqasasas.beat.application.EventStateService;
+import dev.konqasasas.beat.application.AdminAuthorizer;
 import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.configuration.CompetitionSettingsService;
 import dev.konqasasas.beat.domain.high.HighPracticeSession;
@@ -39,6 +40,7 @@ import org.bukkit.util.Vector;
 public final class HighPracticeController implements Listener, LiveCompetitionClock {
     private final BeatPlugin plugin;
     private final RosterService rosters;
+    private final AdminAuthorizer admins;
     private final EventStateService eventState;
     private final MapConfigurationService maps;
     private final MapValidationService validation;
@@ -50,12 +52,14 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
     private BukkitTask task;
     private BossBar phaseBossBar;
 
-    public HighPracticeController(BeatPlugin plugin, RosterService rosters, EventStateService eventState,
+    public HighPracticeController(BeatPlugin plugin, RosterService rosters, AdminAuthorizer admins,
+            EventStateService eventState,
             MapConfigurationService maps, MapValidationService validation,
             HighCompetitionController competition, ConfigurationFiles configuration,
             CompetitionSettingsService settings) {
         this.plugin = plugin;
         this.rosters = rosters;
+        this.admins = admins;
         this.eventState = eventState;
         this.maps = maps;
         this.validation = validation;
@@ -84,7 +88,12 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                 new HighPracticeSession(participants, countdownTicks, practiceTicks, prepareTicks);
         eventState.transitionTo(TournamentState.HIGH_PRACTICE_COUNTDOWN);
         session = candidate;
-        forOnlineParticipants(this::enterCountdown);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (session.contains(player.getUniqueId())) enterCountdown(player);
+            else if (admins.isAdmin(player.getUniqueId())) {
+                teleport(player, maps.high().courses().get(1).start());
+            }
+        }
         announceCountdown(10, "notifications.high.practice-countdown", "[BEAT] 練習開始まで... {seconds}");
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
@@ -172,15 +181,20 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         HighPracticeSession current = session;
-        if (current == null || !current.contains(event.getPlayer().getUniqueId())) return;
-        Bukkit.getScheduler().runTask(plugin, () -> restoreForCurrentPhase(event.getPlayer()));
+        if (current == null) return;
+        Player player = event.getPlayer();
+        if (current.contains(player.getUniqueId())) {
+            Bukkit.getScheduler().runTask(plugin, () -> restoreForCurrentPhase(player));
+        } else if (admins.isAdmin(player.getUniqueId())) {
+            Bukkit.getScheduler().runTask(plugin, () -> restoreAdminForCurrentPhase(player));
+        }
     }
 
     public synchronized void shutdown() {
         if (task != null) task.cancel();
         task = null;
         removeBossBar();
-        forOnlineParticipants(player -> { cleanupPracticePlayer(player); CompetitionPlayerState.release(player); });
+        forOnlineParticipants(this::cleanupPracticePlayer);
         session = null;
     }
 
@@ -214,8 +228,8 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                     "練習",
                     configuration.barColor("boss-bars.high-practice", BarColor.GREEN),
                     configuration.barStyle("boss-bars.high-practice", BarStyle.SOLID));
-            forOnlineParticipants(player -> {
-                items.give(player);
+            forOnlineAudience(player -> {
+                if (session.contains(player.getUniqueId())) items.give(player);
                 phaseBossBar.addPlayer(player);
                 player.sendMessage(configuration.message(
                         "notifications.high.practice-started",
@@ -273,9 +287,11 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                 "準備",
                 configuration.barColor("boss-bars.high-prepare", BarColor.YELLOW),
                 configuration.barStyle("boss-bars.high-prepare", BarStyle.SOLID));
-        forOnlineParticipants(player -> {
-            cleanupPracticePlayer(player);
-            teleport(player, maps.high().prepare());
+        forOnlineAudience(player -> {
+            if (session.contains(player.getUniqueId())) {
+                cleanupPracticePlayer(player);
+                teleport(player, maps.high().prepare());
+            }
             phaseBossBar.addPlayer(player);
         });
         updatePrepareBossBar();
@@ -285,7 +301,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         if (after == HighPracticeSession.Phase.COMPLETE) {
             removeBossBar();
             competition.startFromPrepare();
-            forOnlineParticipants(player -> {
+            forOnlineAudience(player -> {
                 player.sendMessage(configuration.message(
                         "notifications.high.running-started",
                         "[BEAT] 高難易度本番を開始します。"));
@@ -331,6 +347,19 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         }
     }
 
+    private void restoreAdminForCurrentPhase(Player player) {
+        switch (session.phase()) {
+            case COUNTDOWN, PRACTICE -> {
+                teleport(player, maps.high().courses().get(1).start());
+                if (phaseBossBar != null) phaseBossBar.addPlayer(player);
+            }
+            case PREPARE -> {
+                if (phaseBossBar != null) phaseBossBar.addPlayer(player);
+            }
+            case COMPLETE -> { }
+        }
+    }
+
     private void enterCountdown(Player player) {
         cleanupPracticePlayer(player);
         CompetitionPlayerState.normalize(player);
@@ -350,8 +379,15 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         }
     }
 
+    private void forOnlineAudience(java.util.function.Consumer<Player> action) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (session != null && (session.contains(player.getUniqueId())
+                    || admins.isAdmin(player.getUniqueId()))) action.accept(player);
+        }
+    }
+
     private void announceCountdown(int seconds, String path, String fallback) {
-        forOnlineParticipants(player -> {
+        forOnlineAudience(player -> {
             player.sendMessage(configuration.message(
                     path, fallback, java.util.Map.of("seconds", seconds)));
             String soundPath = "sounds.countdown";

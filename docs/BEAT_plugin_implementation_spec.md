@@ -245,7 +245,9 @@ BEAT 管理者権限は admins.json で決める。
 
 - OP であるだけでは BEAT 管理者権限を与えない
 - Console は全管理コマンドを使用可能
-- admins.json の UUID は競技参加者として扱わない
+- admins.json のみに存在する UUID は競技結果へ含めない
+- participants.json にも存在する UUID は競技中、参加者としての処理を優先する
+- Adminのみのオンラインプレイヤーにも開始地点への移動、競技UI、カウントダウン、全体通知を提供する
 
 ## 4.4 JSON validation
 
@@ -253,7 +255,7 @@ reload 時に以下を検査する。
 
 - UUID の形式
 - UUID 重複
-- participants / admins 両方への同一 UUID 登録
+- participants / admins の各ファイル内での同一 UUID 重複
 - 空の名前
 - 明らかな不正 JSON
 
@@ -450,7 +452,8 @@ Split / Spot / Progress
 
 - 空腹減少を無効化
 - ダメージを無効化
-- 参加者同士の collision を無効化
+- 参加者・運営・未登録者を含む全オンラインプレイヤー間の collision を無効化
+- プレイヤー衝突は各BEAT ScoreboardのTeam `COLLISION_RULE = NEVER` で制御する
 - 競技進行中のアイテムドロップを無効化
 
 登録参加者には大会状態にかかわらず、以下のマップ保護を常時適用する。運営は対象外。
@@ -1183,9 +1186,10 @@ TextDisplayは全員で共有し、BlockDisplayはプレイヤーごとに該当
 地点は読み込まれたChunkにだけ生成し、ワールドへ永続保存しない。セットアップ確認表示も
 同じBlockDisplayとTextDisplayを使用し、操作者にだけ黄色で表示する。
 
-耐久競技中は、`admins.json` 登録者にも全ProgressのTextDisplayと `LIGHT_BLUE_WOOL` を表示する。
+耐久競技中は、Adminのみのプレイヤーにも全ProgressのTextDisplayと `LIGHT_BLUE_WOOL` を表示する。
 運営表示はProgress取得状況によって変色させず、競技中は常に空色とする。競技中に接続した運営にも
 自動表示し、既存のDisplay Entityを共有して運営専用Entityは追加しない。
+Admin兼参加者には参加者本人の進行状況に応じた色を表示する。
 脱落した参加者には従来どおりProgress表示を行わない。
 
 ## 13.3 Zone
@@ -1281,6 +1285,9 @@ Zone 2 到達 ｜ Progress 035 ｜ #08
 ```
 
 通常 Progress より分かりやすい Sound。
+
+順位変動の有無に関係なく、Zone番号・Progress・順位を全体Chatへ必ず1回通知する。
+Zone到達と通常の順位更新通知は重複させない。
 
 ## 13.10 Goal
 
