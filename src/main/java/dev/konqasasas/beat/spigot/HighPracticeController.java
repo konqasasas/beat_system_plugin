@@ -45,6 +45,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
     private final MapConfigurationService maps;
     private final MapValidationService validation;
     private final HighPracticeItems items;
+    private final HighAdjustmentShield adjustmentShield;
     private final HighCompetitionController competition;
     private final ConfigurationFiles configuration;
     private final CompetitionSettingsService settings;
@@ -64,6 +65,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         this.maps = maps;
         this.validation = validation;
         this.items = new HighPracticeItems(plugin);
+        this.adjustmentShield = new HighAdjustmentShield(plugin);
         this.competition = competition;
         this.configuration = configuration;
         this.settings = settings;
@@ -91,6 +93,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (session.contains(player.getUniqueId())) enterCountdown(player);
             else if (admins.isAdmin(player.getUniqueId())) {
+                adjustmentShield.remove(player);
                 teleport(player, maps.high().courses().get(1).start());
             }
         }
@@ -229,7 +232,12 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
                     configuration.barColor("boss-bars.high-practice", BarColor.GREEN),
                     configuration.barStyle("boss-bars.high-practice", BarStyle.SOLID));
             forOnlineAudience(player -> {
-                if (session.contains(player.getUniqueId())) items.give(player);
+                if (session.contains(player.getUniqueId())) {
+                    items.give(player);
+                    adjustmentShield.give(player);
+                } else {
+                    adjustmentShield.remove(player);
+                }
                 phaseBossBar.addPlayer(player);
                 player.sendMessage(configuration.message(
                         "notifications.high.practice-started",
@@ -341,13 +349,20 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
     private void restoreForCurrentPhase(Player player) {
         switch (session.phase()) {
             case COUNTDOWN -> enterCountdown(player);
-            case PRACTICE -> { CompetitionPlayerState.normalize(player); teleport(player, maps.high().courses().get(1).start()); items.give(player); if (phaseBossBar != null) phaseBossBar.addPlayer(player); }
+            case PRACTICE -> {
+                CompetitionPlayerState.normalize(player);
+                teleport(player, maps.high().courses().get(1).start());
+                items.give(player);
+                adjustmentShield.give(player);
+                if (phaseBossBar != null) phaseBossBar.addPlayer(player);
+            }
             case PREPARE -> { cleanupPracticePlayer(player); CompetitionPlayerState.normalize(player); teleport(player, maps.high().prepare()); if (phaseBossBar != null) phaseBossBar.addPlayer(player); }
             case COMPLETE -> { }
         }
     }
 
     private void restoreAdminForCurrentPhase(Player player) {
+        adjustmentShield.remove(player);
         switch (session.phase()) {
             case COUNTDOWN, PRACTICE -> {
                 teleport(player, maps.high().courses().get(1).start());
@@ -368,6 +383,7 @@ public final class HighPracticeController implements Listener, LiveCompetitionCl
 
     private void cleanupPracticePlayer(Player player) {
         items.remove(player);
+        adjustmentShield.remove(player);
         player.setFlying(false);
         player.setAllowFlight(false);
         player.setVelocity(new Vector());

@@ -43,6 +43,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private final HighResultService results;
     private final MapValidationService validation;
     private final HighRunningItem returnItem;
+    private final HighAdjustmentShield adjustmentShield;
     private final ConfigurationFiles configuration;
     private final CompetitionSettingsService settings;
     private final PlayerCollisionService collisions;
@@ -67,6 +68,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         this.results = results;
         this.validation = validation;
         this.returnItem = new HighRunningItem(plugin);
+        this.adjustmentShield = new HighAdjustmentShield(plugin);
         this.configuration = configuration;
         this.settings = settings;
         this.collisions = collisions;
@@ -106,7 +108,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         display = new HighCompetitionDisplay(configuration, collisions);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (session.contains(player.getUniqueId())) activateAtStart(player);
-            else if (admins.isAdmin(player.getUniqueId())) display.add(player);
+            else if (admins.isAdmin(player.getUniqueId())) {
+                adjustmentShield.remove(player);
+                display.add(player);
+            }
         }
         var next = nextElimination();
         display.updateImmediately(elapsedTick, totalTicks, next == null ? null : next.tick(),
@@ -150,6 +155,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         if (current == null || !current.contains(player.getUniqueId()) || !current.active(player.getUniqueId())) return;
         if (current.record(player.getUniqueId()).allCoursesCleared()) {
             returnItem.remove(player);
+            adjustmentShield.remove(player);
             player.sendMessage(configuration.message(
                     "notifications.high.checkpoint-disabled",
                     "[BEAT] 完走済みのためCPは使用できません。"));
@@ -164,12 +170,20 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     public void onJoin(PlayerJoinEvent event) {
         HighCompetitionSession current = session;
         Player player = event.getPlayer();
-        if (current == null) return;
+        if (current == null) {
+            if (eventState.current().tournamentState() != TournamentState.HIGH_PRACTICE) {
+                adjustmentShield.remove(player);
+            }
+            return;
+        }
         if (current.contains(player.getUniqueId())) {
             Bukkit.getScheduler().runTask(plugin, () -> restore(player));
         } else if (admins.isAdmin(player.getUniqueId())) {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                if (display != null && player.isOnline()) display.add(player);
+                if (display != null && player.isOnline()) {
+                    adjustmentShield.remove(player);
+                    display.add(player);
+                }
             });
         }
     }
@@ -180,7 +194,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         if (display != null && session != null) display.clear(session);
         if (session != null) {
             for (Player player : Bukkit.getOnlinePlayers()) {
-                if (session.contains(player.getUniqueId())) returnItem.remove(player);
+                if (session.contains(player.getUniqueId())) {
+                    returnItem.remove(player);
+                    adjustmentShield.remove(player);
+                }
             }
         }
         display = null;
@@ -191,6 +208,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (rosters.current().participant(player.getUniqueId()).isPresent()) {
                 returnItem.remove(player);
+                adjustmentShield.remove(player);
                 player.setFlying(false);
                 player.setAllowFlight(false);
                 player.setVelocity(new Vector());
@@ -281,6 +299,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         rankingDirty = true;
         if (result.allClear()) {
             returnItem.remove(player);
+            adjustmentShield.remove(player);
             display.feedback(player, configuration.message(
                     "notifications.high.all-clear",
                     "ALL CLEAR! ｜ {points}pt ｜ #{rank}",
@@ -388,6 +407,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                 if (player != null) {
                     player.setGameMode(GameMode.SPECTATOR);
                     returnItem.remove(player);
+                    adjustmentShield.remove(player);
                     player.sendMessage(configuration.message(
                             "notifications.high.eliminated",
                             "[BEAT] 脱落しました。最終記録: {points}pt (#{rank})",
@@ -406,6 +426,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
             player.setGameMode(GameMode.ADVENTURE);
             player.setVelocity(new Vector());
             returnItem.remove(player);
+            adjustmentShield.remove(player);
             teleport(player, maps.high().end());
         });
         display.clear(session);
@@ -423,6 +444,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         CompetitionPlayerState.normalize(player);
         teleport(player, maps.high().courses().get(1).start());
         returnItem.give(player);
+        adjustmentShield.give(player);
         display.add(player);
         rankingDirty = true;
     }
@@ -430,6 +452,8 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private void restore(Player player) {
         if (session.eliminated(player.getUniqueId())) {
             player.setGameMode(GameMode.SPECTATOR);
+            returnItem.remove(player);
+            adjustmentShield.remove(player);
             rankingDirty = true;
             return;
         }
@@ -444,7 +468,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
             player.setGameMode(GameMode.ADVENTURE);
             teleport(player, maps.high().courses().get(1).start());
         }
-        returnItem.give(player);
+        if (!session.record(player.getUniqueId()).allCoursesCleared()) {
+            returnItem.give(player);
+            adjustmentShield.give(player);
+        }
         display.add(player);
         rankingDirty = true;
     }

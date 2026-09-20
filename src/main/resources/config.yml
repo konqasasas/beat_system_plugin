@@ -53,6 +53,12 @@ high-difficulty:
     name: "&e現在CourseのStartへ戻る"
     lore:
       - "&7使用すると現在Courseの開始地点へ戻ります。"
+  adjustment-shield:
+    material: SHIELD
+    slot: 2
+    name: "&f位置調整用の盾"
+    lore:
+      - "&7構えて移動速度を落とし、細かく位置を調整できます。"
 
 endurance:
   progress-trigger:

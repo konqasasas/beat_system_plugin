@@ -68,7 +68,9 @@ class ConfigurationResourcesTest {
                 "ui-update-ticks.boss-bar", "ui-update-ticks.player-visibility",
                 "confirmation-timeouts.dangerous-action-millis",
                 "high-difficulty.practice-items.checkpoint.slot",
-                "high-difficulty.practice-items.flight.slot"
+                "high-difficulty.practice-items.flight.slot",
+                "high-difficulty.adjustment-shield.material",
+                "high-difficulty.adjustment-shield.slot"
         }) {
             assertPath(config, configPath);
         }
