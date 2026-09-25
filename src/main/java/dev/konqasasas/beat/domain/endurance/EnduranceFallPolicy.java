@@ -6,4 +6,8 @@ public final class EnduranceFallPolicy {
     public static boolean shouldRestart(EnduranceRecord record, double playerY, double fallY) {
         return !record.goalReached() && playerY <= fallY;
     }
+
+    public static boolean shouldReturnToGoal(EnduranceRecord record, double playerY, double fallY) {
+        return record.goalReached() && playerY <= fallY;
+    }
 }

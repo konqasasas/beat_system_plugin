@@ -422,8 +422,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         results.saveFinal(session);
         eventState.transitionTo(TournamentState.HIGH_FINISHED);
         display.updateRanking(session);
-        forParticipants(player -> {
-            player.setGameMode(GameMode.ADVENTURE);
+        forAudience(player -> {
             player.setVelocity(new Vector());
             returnItem.remove(player);
             adjustmentShield.remove(player);

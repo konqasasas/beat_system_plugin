@@ -842,8 +842,8 @@ Sound も毎秒。脱落時刻および30:00の0秒到達時にも専用Soundを
 終了後:
 
 - 結果自動確定
-- 全員指定終了地点へ TP
-- Adventure
+- オンラインの参加者と運営を指定終了地点へ TP
+- GameMode は終了直前の状態を維持
 - 競技アイテム削除
 - Bossbar / ActionBar / Sidebar / Tab ランキング解除
 
@@ -1125,8 +1125,8 @@ Spigot の player list order を利用する。
 
 終了後:
 
-- 全員指定終了地点へ TP
-- Adventure
+- オンラインの参加者と運営を指定終了地点へ TP
+- GameMode は終了直前の状態を維持
 - UI 削除
 - アイテム削除
 - 結果自動確定
@@ -1229,7 +1229,9 @@ Zone 到達時:
 落下時:
 
 - Velocity = 0
-- 最後に到達済み Zone の restartLocation へ TP
+- 未完走者は最後に到達済み Zone の restartLocation へ TP
+- 完走者は Goal Progress に登録された先頭の座標へ TP
+- 完走者の記録、Goal 到達 tick、順位は変更しない
 
 Zone1:
 - startLocation
@@ -1386,8 +1388,8 @@ Zone 3 未到達者脱落まで... 10
 
 その後:
 
-- 全員終了地点へ TP
-- Adventure
+- オンラインの参加者と運営を終了地点へ TP
+- GameMode は終了直前の状態を維持
 - UI 削除
 - 結果自動確定
 

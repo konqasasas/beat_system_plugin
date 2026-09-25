@@ -227,6 +227,11 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                 player.setVelocity(new Vector());
                 teleport(player, restart(id));
                 suppressTeleportDetection.add(id);
+            } else if (EnduranceFallPolicy.shouldReturnToGoal(
+                    session.record(id), player.getLocation().getY(), maps.endurance().fallY())) {
+                player.setVelocity(new Vector());
+                teleport(player, goalLocation());
+                suppressTeleportDetection.add(id);
             }
         }
     }
@@ -280,6 +285,11 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
             case 2 -> maps.endurance().zone2Restart();
             default -> maps.endurance().start();
         };
+    }
+
+    private MapLocation goalLocation() {
+        var goal = maps.endurance().progresses().get(maps.endurance().goalProgress()).getFirst();
+        return new MapLocation(goal.world(), goal.x(), goal.y(), goal.z(), 0F, 0F);
     }
 
     private void cutoffs(long previous, long current) {
@@ -439,8 +449,7 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         session.finish();
         results.saveFinal(session);
         states.transitionTo(TournamentState.ENDURANCE_FINISHED);
-        forPlayers(player -> {
-            player.setGameMode(GameMode.ADVENTURE);
+        forAudience(player -> {
             player.setVelocity(new Vector());
             teleport(player, maps.endurance().end());
         });
