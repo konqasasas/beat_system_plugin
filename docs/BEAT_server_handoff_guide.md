@@ -153,13 +153,14 @@ BEATを本番サーバーで動かすだけなら、ソースコードやGradle�
 
 ```properties
 level-name=0_lobby
-gamemode=adventure
+gamemode=survival
+force-gamemode=false
 spawn-protection=0
 ```
 
 `0_lobby` フォルダーをサーバールートへ配置してから起動してください。これにより、サーバーのデフォルトワールドとしてロビーが読み込まれます。
 
-`gamemode=adventure` により、参加者のデフォルトゲームモードをアドベンチャーにします。`spawn-protection=0` により、スポーン保護がBEATのアイテム操作などを妨げないようにします。これらの変更は、サーバーを停止した状態で行ってください。
+`gamemode=survival` と `force-gamemode=false` により、初参加時のスポーン座標はMinecraft標準のSurvival側の処理で決定します。BEATは初参加をスポーン位置決定時に記録し、位置を変更せず、参加完了時に一度だけAdventureへ切り替えます。再ログイン時のGameModeは強制しません。`spawn-protection=0` により、スポーン保護がBEATのアイテム操作などを妨げないようにします。これらの変更は、サーバーを停止した状態で行ってください。
 
 Multiverse-Coreでワールドをインポートする場合の例です。
 

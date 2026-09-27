@@ -29,6 +29,7 @@ import dev.konqasasas.beat.debug.DebugService;
 import dev.konqasasas.beat.spigot.EmergencyOperationsService;
 import dev.konqasasas.beat.spigot.CompetitionSafetyListener;
 import dev.konqasasas.beat.spigot.GameModeMonitor;
+import dev.konqasasas.beat.spigot.FirstJoinGameModeListener;
 import dev.konqasasas.beat.ui.PlayerVisibilityService;
 import dev.konqasasas.beat.map.persistence.MapConfigurationService;
 import dev.konqasasas.beat.map.validation.MapValidationService;
@@ -183,6 +184,7 @@ public final class BeatPlugin extends JavaPlugin {
             command.setTabCompleter(beatCommand);
 
             ParticipantJoinListener joins = new ParticipantJoinListener(this, participants, admins);
+            getServer().getPluginManager().registerEvents(new FirstJoinGameModeListener(), this);
             getServer().getPluginManager().registerEvents(joins, this);
             getServer().getPluginManager().registerEvents(
                     new SetupWandListener(setupWand, selections, admins, configurationFiles), this);

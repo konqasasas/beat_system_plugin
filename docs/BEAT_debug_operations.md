@@ -45,6 +45,10 @@
 
 ## DBG-01｜参加者集合
 
+- [ ] `server.properties` が `level-name=0_lobby`、`gamemode=survival`、`force-gamemode=false`
+- [ ] サーバー停止中に `0_lobby/playerdata/<UUID>.dat` を退避した検証プレイヤーが、ロビーの設定どおりの座標へ初期スポーンする
+- [ ] 初期スポーン直後にAdventureになる
+- [ ] 再ログイン時はGameModeを強制変更されない
 - [ ] デバッグ参加者がログインできる
 - [ ] `/beat players` と実際の参加者が一致
 - [ ] 観戦・運営アカウントが参加者扱いになっていない

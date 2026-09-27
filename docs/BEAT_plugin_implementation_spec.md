@@ -1684,6 +1684,17 @@ After: 31.80
 
 # 18. 再接続・途中参加
 
+## 18.0 サーバー初参加時のGameMode
+
+`server.properties` は `level-name=0_lobby`、`gamemode=survival`、`force-gamemode=false` とする。
+
+サーバーに初参加するプレイヤーは、SpigotがSurvival側の標準処理で初期スポーン座標を決定した後、スポーン座標を変更せずAdventureへ切り替える。
+
+- `PlayerSpawnLocationEvent` では `hasPlayedBefore()` により初参加を記録するだけで、LocationとGameModeを変更しない
+- 続く `PlayerJoinEvent` で、記録された初参加プレイヤーだけをAdventureへ変更する
+- 再ログイン時はGameModeを強制しない
+- Multiverse-CoreのGameMode設定には依存しない
+
 ## 18.1 初参加
 
 競技中に初ログイン:
