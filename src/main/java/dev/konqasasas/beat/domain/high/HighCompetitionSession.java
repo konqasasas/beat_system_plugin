@@ -95,7 +95,9 @@ public final class HighCompetitionSession {
     public int currentCourse(UUID playerId) { return requirePlayer(playerId).currentCourse; }
     public boolean active(UUID playerId) { return requirePlayer(playerId).active; }
     public boolean eliminated(UUID playerId) { return requirePlayer(playerId).eliminated; }
+    public void eliminateLate(UUID playerId) { PlayerState state=requirePlayer(playerId);state.active=false;state.eliminated=true;state.record.freeze(); }
     public boolean contains(UUID playerId) { return players.containsKey(playerId); }
+    public java.util.Set<UUID> playerIds() { return java.util.Set.copyOf(players.keySet()); }
 
     private PlayerState requireActive(UUID playerId) {
         PlayerState state = requirePlayer(playerId);

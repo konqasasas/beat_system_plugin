@@ -6,6 +6,8 @@ import dev.konqasasas.beat.application.EventStateService;
 import dev.konqasasas.beat.application.OverallService;
 import dev.konqasasas.beat.application.ResultAnnouncementService;
 import dev.konqasasas.beat.application.WhitelistService;
+import dev.konqasasas.beat.application.HighStartPreflightService;
+import dev.konqasasas.beat.domain.WhitelistMode;
 import dev.konqasasas.beat.command.CompetitionCommand;
 import dev.konqasasas.beat.command.CompetitionSettingsCommand;
 import dev.konqasasas.beat.configuration.CompetitionSettings;
@@ -48,16 +50,18 @@ public final class BeatAdminMenu implements Listener {
     private final ConfigurationFiles configuration;
     private final CompetitionSettingsService settings;
     private final CompetitionSettingsCommand settingsCommand;
+    private final HighStartPreflightService preflight;
     private final Map<UUID,CompetitionSettings> settingsDrafts=new java.util.HashMap<>();
 
     public BeatAdminMenu(BeatPlugin plugin,AdminAuthorizer admins,RosterService rosters,EventStateService states,
             MapConfigurationService maps,MapValidationService validation,CompetitionCommand competitions,
             EmergencyOperationsService emergency,OverallService overall,WhitelistService whitelists,
             ResultAnnouncementService announcements,ConfigurationFiles configuration,
-            CompetitionSettingsService settings,CompetitionSettingsCommand settingsCommand){
+            CompetitionSettingsService settings,CompetitionSettingsCommand settingsCommand,
+            HighStartPreflightService preflight){
         this.plugin=plugin;this.admins=admins;this.rosters=rosters;this.states=states;this.maps=maps;
         this.validation=validation;this.competitions=competitions;this.emergency=emergency;
-        this.overall=overall;this.whitelists=whitelists;this.announcements=announcements;this.configuration=configuration;this.settings=settings;this.settingsCommand=settingsCommand;actionKey=new NamespacedKey(plugin,"admin-menu-action");
+        this.overall=overall;this.whitelists=whitelists;this.announcements=announcements;this.configuration=configuration;this.settings=settings;this.settingsCommand=settingsCommand;this.preflight=preflight;actionKey=new NamespacedKey(plugin,"admin-menu-action");
     }
 
     public void open(Player player){Inventory inventory=create(BeatMenuHolder.Screen.MAIN,m("gui.titles.main","BEAT 運営メニュー"),54);
@@ -89,14 +93,21 @@ public final class BeatAdminMenu implements Listener {
             if(action.startsWith("whitelist_mode:")){runAndReturn(player,"beat whitelist "+part(action,1),()->openWhitelist(player));return;}
             if(action.startsWith("validation:")){openValidation(player,part(action,1));return;}
             if(action.startsWith("settings_adjust:")){adjustSetting(player,part(action,1),event.isLeftClick(),event.isShiftClick());return;}
+            if(action.startsWith("preflight_participants_page:")){openPreflightParticipants(player,number(action,1));return;}
             switch(action){
                 case"back"->open(player);case"players"->openPlayers(player,0);case"results"->openResults(player);
                 case"setup"->openSetup(player);case"whitelist"->openWhitelist(player);case"overall"->openOverall(player,0);case"settings"->openSettings(player);
                 case"settings_preset_production"->{settingsDrafts.put(player.getUniqueId(),CompetitionSettings.production());openSettings(player);}
                 case"settings_preset_test"->{settingsDrafts.put(player.getUniqueId(),CompetitionSettings.testPreset());openSettings(player);}
                 case"settings_apply"->applySettings(player);case"settings_discard"->{settingsDrafts.remove(player.getUniqueId());open(player);}
-                case"start_high"->openStart(player,"high");case"start_ta"->openStart(player,"ta");case"start_endurance"->openStart(player,"endurance");
-                case"confirm_start_high"->start(player,"high");case"confirm_start_ta"->start(player,"ta");case"confirm_start_endurance"->start(player,"endurance");
+                case"start_high"->openHighStartEntry(player);case"start_ta"->openStart(player,"ta");case"start_endurance"->openStart(player,"endurance");
+                case"confirm_start_high"->startHigh(player);case"confirm_start_ta"->start(player,"ta");case"confirm_start_endurance"->start(player,"endurance");
+                case"preflight_settings"->openPreflightSettings(player);case"preflight_participants"->openPreflightParticipants(player,0);
+                case"preflight_confirm_settings"->{preflight.confirmSettings(player.getUniqueId());openHighPreflight(player);}
+                case"preflight_confirm_participants"->{preflight.confirmParticipants(player.getUniqueId());openHighPreflight(player);}
+                case"preflight_reload"->runAndReturn(player,"beat reload",()->openHighPreflight(player));
+                case"preflight_whitelist_all"->runAndReturn(player,"beat whitelist all",()->openHighPreflight(player));
+                case"preflight_start"->startHighPreflight(player);
                 case"emergency"->openEmergency(player);
                 case"cancel_phase"->openDanger(player,BeatMenuHolder.Screen.CONFIRM_CANCEL,m("gui.confirm-titles.cancel","フェーズを中止しますか？"),"confirm_cancel");
                 case"collect"->openDanger(player,BeatMenuHolder.Screen.CONFIRM_COLLECT,m("gui.confirm-titles.collect","参加者を回収しますか？"),"confirm_collect");
@@ -133,7 +144,7 @@ public final class BeatAdminMenu implements Listener {
 
     private void applySettings(Player player)throws ConfigurationLoadException{
         settingsCommand.ensureEditable();CompetitionSettings draft=settingsDrafts.getOrDefault(player.getUniqueId(),settings.current());
-        settings.save(draft);settingsDrafts.remove(player.getUniqueId());player.sendMessage("[BEAT] 競技設定を保存しました。");open(player);
+        settings.save(draft);preflight.clear();settingsDrafts.remove(player.getUniqueId());player.sendMessage("[BEAT] 競技設定を保存しました。");open(player);
     }
 
     private static String settingLabel(String key){return switch(key){
@@ -159,8 +170,41 @@ public final class BeatAdminMenu implements Listener {
     private void validationButton(Inventory inventory,int slot,String kind,ValidationReport report){put(inventory,slot,report.errorCount()>0?Material.RED_CONCRETE:report.warningCount()>0?Material.YELLOW_CONCRETE:Material.LIME_CONCRETE,kind.toUpperCase(Locale.ROOT),"validation:"+kind,ml("gui.validation.summary-lore",List.of("ERROR: {errors}","WARNING: {warnings}","クリックで詳細"),Map.of("errors",report.errorCount(),"warnings",report.warningCount())));}
     private void openValidation(Player player,String kind){ValidationReport report=switch(kind){case"high"->validation.validateHigh(maps.high());case"ta"->validation.validateTimeAttack(maps.timeAttack());case"endurance"->validation.validateEndurance(maps.endurance());default->throw new IllegalArgumentException("競技が不正です");};Inventory inventory=create(BeatMenuHolder.Screen.VALIDATION,configuration.message("gui.titles.validation","Validation: {competition}",Map.of("competition",kind)),54);int slot=0;for(var issue:report.issues().stream().limit(MenuPagination.PAGE_SIZE).toList())put(inventory,slot++,issue.severity().name().equals("ERROR")?Material.RED_DYE:Material.YELLOW_DYE,issue.severity().name(),"disabled",List.of(issue.message()));if(report.issues().isEmpty())put(inventory,22,Material.LIME_CONCRETE,m("gui.validation.pass","PASS"),"disabled",ml("gui.validation.no-issues",List.of("問題はありません")));put(inventory,49,Material.ARROW,m("gui.validation.back","Setupへ戻る"),"setup",List.of());player.openInventory(inventory);}
 
+    public void openHighStartEntry(Player player){if(states.current().tournamentState()==TournamentState.HIGH_PREPARE)openStart(player,"high");else openHighPreflight(player);}
+
+    private void openHighPreflight(Player player){
+        var confirmed=preflight.status(player.getUniqueId());var whitelist=whitelists.status();var report=validation.validateHigh(maps.high());
+        boolean whitelistReady=whitelist.mode()==WhitelistMode.ALL&&whitelist.synchronizedExactly();
+        Inventory inventory=create(BeatMenuHolder.Screen.PREFLIGHT_HIGH,"BEAT 大会開始前確認",54);
+        put(inventory,10,confirmed.settingsConfirmed()?Material.LIME_CONCRETE:Material.YELLOW_CONCRETE,"競技設定", "preflight_settings",List.of(confirmed.settingsConfirmed()?"確認済み":"内容を開いて確認してください"));
+        put(inventory,12,confirmed.participantsConfirmed()?Material.LIME_CONCRETE:Material.YELLOW_CONCRETE,"参加者", "preflight_participants",List.of("登録: "+rosters.current().participants().size()+"人",confirmed.participantsConfirmed()?"確認済み":"内容を開いて確認してください"));
+        put(inventory,14,whitelistReady?Material.LIME_CONCRETE:Material.RED_CONCRETE,"Whitelist",whitelistReady?"disabled":"preflight_whitelist_all",List.of("Mode: "+whitelist.mode(),"登録: "+whitelist.whitelistedPlayers()+" / 対象: "+whitelist.configuredPlayers(),whitelistReady?"ALL・完全同期済み":"クリックでALLへ完全同期"));
+        put(inventory,16,report.errorCount()==0?(report.warningCount()==0?Material.LIME_CONCRETE:Material.YELLOW_CONCRETE):Material.RED_CONCRETE,"高難易度マップ", "disabled",List.of("ERROR: "+report.errorCount(),"WARNING: "+report.warningCount()));
+        put(inventory,37,Material.COMPASS,"設定・JSONを再読込","preflight_reload",List.of("participants.jsonを変更した場合に実行"));
+        boolean ready=confirmed.ready()&&whitelistReady&&report.errorCount()==0;
+        put(inventory,40,ready?Material.EMERALD_BLOCK:Material.BARRIER,ready?"大会を開始":"未確認項目があります",ready?"preflight_start":"disabled",List.of("高難易度の練習開始カウントダウンへ進みます"));
+        put(inventory,49,Material.ARROW,m("gui.common.back","戻る"),"back",List.of());player.openInventory(inventory);
+    }
+
+    private void openPreflightSettings(Player player){var value=settings.current();Inventory inventory=create(BeatMenuHolder.Screen.PREFLIGHT_SETTINGS,"BEAT 競技設定確認",54);List<String> lore=List.of(
+            "開始カウントダウン: "+CompetitionSettingsCommand.clock(value.startCountdownTicks()),
+            "高難易度 練習: "+CompetitionSettingsCommand.clock(value.highPracticeTicks()),
+            "高難易度 準備: "+CompetitionSettingsCommand.clock(value.highPrepareTicks()),
+            "高難易度 制限: "+CompetitionSettingsCommand.clock(value.highRunningTicks()),
+            "高難易度 脱落: "+value.highEliminationTicks().stream().map(CompetitionSettingsCommand::clock).toList(),
+            "TA 制限: "+CompetitionSettingsCommand.clock(value.timeAttackRunningTicks()),
+            "TA 脱落: "+value.timeAttackEliminationTicks().stream().map(CompetitionSettingsCommand::clock).toList(),
+            "TA 生存人数: "+value.timeAttackSurvivorCounts(),
+            "耐久 制限: "+CompetitionSettingsCommand.clock(value.enduranceRunningTicks()),
+            "耐久 脱落: "+value.enduranceEliminationTicks().stream().map(CompetitionSettingsCommand::clock).toList());put(inventory,22,Material.CLOCK,"大会全体の競技設定","disabled",lore);put(inventory,38,Material.EMERALD_BLOCK,"この設定を確認","preflight_confirm_settings",List.of());put(inventory,42,Material.ARROW,"確認画面へ戻る","start_high",List.of());player.openInventory(inventory);}
+
+    private void openPreflightParticipants(Player player,int requestedPage){List<RegisteredIdentity> rows=rosters.current().participants().values().stream().sorted(Comparator.comparing(RegisteredIdentity::mcid,String.CASE_INSENSITIVE_ORDER)).toList();int page=MenuPagination.clamp(requestedPage,rows.size());Inventory inventory=create(BeatMenuHolder.Screen.PREFLIGHT_PARTICIPANTS,"BEAT 参加者確認 "+(page+1)+"/"+MenuPagination.pages(rows.size()),54);for(int i=MenuPagination.from(page);i<MenuPagination.to(page,rows.size());i++){var identity=rows.get(i);boolean online=Bukkit.getPlayer(identity.uuid())!=null;put(inventory,i%MenuPagination.PAGE_SIZE,online?Material.LIME_DYE:Material.GRAY_DYE,identity.mcid(),"disabled",List.of(identity.uuid().toString(),online?"Online":"Offline"));}if(page>0)put(inventory,45,Material.ARROW,"前のページ","preflight_participants_page:"+(page-1),List.of());if(MenuPagination.to(page,rows.size())<rows.size())put(inventory,53,Material.ARROW,"次のページ","preflight_participants_page:"+(page+1),List.of());put(inventory,48,Material.EMERALD_BLOCK,"この参加者一覧を確認","preflight_confirm_participants",List.of("登録: "+rows.size()+"人"));put(inventory,50,Material.ARROW,"確認画面へ戻る","start_high",List.of());player.openInventory(inventory);}
+
+    private void startHighPreflight(Player player){preflight.requireConfirmed(player.getUniqueId());var whitelist=whitelists.status();if(whitelist.mode()!=WhitelistMode.ALL||!whitelist.synchronizedExactly())throw new IllegalStateException("WhitelistをALLへ完全同期してください");ValidationReport report=validation.validateHigh(maps.high());if(report.errorCount()>0)throw new IllegalStateException("高難易度マップ検証ERROR: "+report.errorCount());player.closeInventory();competitions.startHighConfirmed(player);preflight.clear();}
+
     private void openStart(Player player,String competition){ValidationReport report=switch(competition){case"high"->validation.validateHigh(maps.high());case"ta"->validation.validateTimeAttack(maps.timeAttack());default->validation.validateEndurance(maps.endurance());};Inventory inventory=create(switch(competition){case"high"->BeatMenuHolder.Screen.START_HIGH;case"ta"->BeatMenuHolder.Screen.START_TA;default->BeatMenuHolder.Screen.START_ENDURANCE;},configuration.message("gui.titles.start","{competition} 開始確認",Map.of("competition",competition.toUpperCase(Locale.ROOT))),27);List<String> lore=new ArrayList<>(ml("gui.start.summary-lore",List.of("参加者: {participants}","Online: {online}","ERROR: {errors} / WARNING: {warnings}"),Map.of("participants",rosters.current().participants().size(),"online",rosters.current().participantUuids().stream().filter(id->Bukkit.getPlayer(id)!=null).count(),"errors",report.errorCount(),"warnings",report.warningCount())));report.issues().stream().limit(8).forEach(issue->lore.add(configuration.message("gui.start.issue","{severity}: {message}",Map.of("severity",issue.severity(),"message",issue.message()))));if(report.errorCount()>0)put(inventory,13,Material.BARRIER,m("gui.start.blocked","開始できません"),"disabled",lore);else put(inventory,13,report.warningCount()>0?Material.YELLOW_CONCRETE:Material.LIME_CONCRETE,report.warningCount()>0?m("gui.start.with-warning","警告を確認して開始"):m("gui.start.execute","開始する"),"confirm_start_"+competition,lore);put(inventory,22,Material.ARROW,m("gui.common.back","戻る"),"back",List.of());player.openInventory(inventory);}
     private void start(Player player,String competition){player.closeInventory();competitions.execute(player,new String[]{competition,"start"});}
+    private void startHigh(Player player){player.closeInventory();competitions.startHighConfirmed(player);}
 
     private void openEmergency(Player player){Inventory inventory=create(BeatMenuHolder.Screen.EMERGENCY,m("gui.titles.emergency","BEAT 緊急操作"),36);put(inventory,10,Material.BARRIER,m("gui.emergency.cancel","現在フェーズを中止"),"cancel_phase",ml("gui.emergency.cancel-lore",List.of("進行中データを保存せず安全状態へ","二段階確認")));put(inventory,12,Material.ENDER_PEARL,m("gui.emergency.collect","参加者を全回収"),"collect",ml("gui.emergency.collect-lore",List.of("現在競技の終了地点へ移動","二段階確認")));put(inventory,14,Material.REDSTONE_TORCH,m("gui.emergency.force-end","現在競技を強制終了"),"force_end",ml("gui.emergency.force-end-lore",List.of("現時点の結果を確定","競技中のみ実行可能","二段階確認")));put(inventory,16,Material.TNT,m("gui.emergency.restart","現在競技を再試合"),"restart_current",ml("gui.emergency.restart-lore",List.of("現在記録を破棄して準備状態へ","二段階確認")));put(inventory,31,Material.ARROW,m("gui.common.back","戻る"),"back",List.of());player.openInventory(inventory);}
     private void openDanger(Player player,BeatMenuHolder.Screen screen,String title,String action){Inventory inventory=create(screen,title,27);put(inventory,11,Material.RED_CONCRETE,m("gui.common.execute","実行する"),action,List.of(m("gui.emergency.irreversible","この操作は取り消せない場合があります")));put(inventory,15,Material.LIME_CONCRETE,m("gui.common.back","戻る"),"emergency",List.of());player.openInventory(inventory);}

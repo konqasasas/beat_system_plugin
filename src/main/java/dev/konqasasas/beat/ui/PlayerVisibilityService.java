@@ -4,6 +4,7 @@ import dev.konqasasas.beat.BeatPlugin;
 import dev.konqasasas.beat.application.AdminAuthorizer;
 import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.roster.RosterService;
+import dev.konqasasas.beat.spigot.TimeAttackPaceDisplay;
 import java.util.List;
 import java.util.Map;
 import org.bukkit.Bukkit;
@@ -25,13 +26,19 @@ public final class PlayerVisibilityService implements Listener {
     private final BeatPlugin plugin;private final RosterService rosters;private final AdminAuthorizer admins;
     private final ConfigurationFiles configuration;
     private final PlayerVisibilityPolicy policy=new PlayerVisibilityPolicy();private final ProtocolPlayerVisibility packets;
+    private final PlayerListDisplayService playerList;
+    private final TimeAttackPaceDisplay paceDisplay;
     private final NamespacedKey marker;private BukkitTask maintenance;
-    public PlayerVisibilityService(BeatPlugin plugin,RosterService rosters,AdminAuthorizer admins,ConfigurationFiles configuration){this.plugin=plugin;this.rosters=rosters;this.admins=admins;this.configuration=configuration;packets=new ProtocolPlayerVisibility(plugin);marker=new NamespacedKey(plugin,"player-visibility-toggle");}
-    public void start(){long interval=configuration.configInt("ui-update-ticks.player-visibility",20,1,1200);maintenance=Bukkit.getScheduler().runTaskTimer(plugin,()->Bukkit.getOnlinePlayers().forEach(player->{if(participant(player))ensureItem(player);if(adminOnly(player)){player.setPlayerListOrder(10_000);player.setPlayerListName(configuration.message("player-visibility.admin-tab","&c[ADMIN] &f{player}",Map.of("player",player.getName())));}}),1,interval);}
-    @EventHandler public void use(PlayerInteractEvent event){if(!isItem(event.getItem()))return;event.setCancelled(true);Player viewer=event.getPlayer();if(!participant(viewer))return;boolean visible=policy.toggle(viewer.getUniqueId());apply(viewer);viewer.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,net.md_5.bungee.api.chat.TextComponent.fromLegacy(visible?configuration.message("player-visibility.shown","&aプレイヤー表示: ON"):configuration.message("player-visibility.hidden","&cプレイヤー表示: OFF")));playConfigured(viewer,"sounds.player-visibility",Sound.BLOCK_NOTE_BLOCK_PLING,0.8F,visible?1.4F:0.8F);}
+    public PlayerVisibilityService(BeatPlugin plugin,RosterService rosters,AdminAuthorizer admins,ConfigurationFiles configuration,PlayerListDisplayService playerList,TimeAttackPaceDisplay paceDisplay){this.plugin=plugin;this.rosters=rosters;this.admins=admins;this.configuration=configuration;this.playerList=playerList;this.paceDisplay=paceDisplay;packets=new ProtocolPlayerVisibility(plugin);marker=new NamespacedKey(plugin,"player-visibility-toggle");}
+    public void start(){long interval=configuration.configInt("ui-update-ticks.player-visibility",20,1,1200);maintenance=Bukkit.getScheduler().runTaskTimer(plugin,()->Bukkit.getOnlinePlayers().forEach(player->{if(participant(player))ensureItem(player);if(adminOnly(player))playerList.set(player,configuration.message("player-visibility.admin-tab","&c[ADMIN] &f{player}",Map.of("player",player.getName())),10_000);}),1,interval);}
+    @EventHandler public void use(PlayerInteractEvent event){if(!isItem(event.getItem()))return;event.setCancelled(true);Player viewer=event.getPlayer();if(!participant(viewer))return;boolean visible=policy.toggle(viewer.getUniqueId());apply(viewer);playerList.refreshViewer(viewer);if(visible)paceDisplay.refreshViewer(viewer);viewer.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,net.md_5.bungee.api.chat.TextComponent.fromLegacy(visible?configuration.message("player-visibility.shown","&aプレイヤー表示: ON"):configuration.message("player-visibility.hidden","&cプレイヤー表示: OFF")));playConfigured(viewer,"sounds.player-visibility",Sound.BLOCK_NOTE_BLOCK_PLING,0.8F,visible?1.4F:0.8F);}
     @EventHandler public void drop(PlayerDropItemEvent event){if(isItem(event.getItemDrop().getItemStack()))event.setCancelled(true);}
-    @EventHandler public void join(PlayerJoinEvent event){Bukkit.getScheduler().runTask(plugin,()->{Player joined=event.getPlayer();if(participant(joined)){ensureItem(joined);apply(joined);}for(Player viewer:Bukkit.getOnlinePlayers())if(participant(viewer)&&policy.shouldHide(viewer.getUniqueId(),joined.getUniqueId(),participant(joined),adminOnly(joined)))packets.hideBodyKeepTab(viewer,joined);});}
-    public void shutdown(){if(maintenance!=null)maintenance.cancel();maintenance=null;for(Player viewer:Bukkit.getOnlinePlayers()){if(admins.isAdmin(viewer.getUniqueId())){viewer.setPlayerListOrder(0);viewer.setPlayerListName(viewer.getName());}for(Player target:Bukkit.getOnlinePlayers())if(!viewer.equals(target))packets.show(viewer,target);}policy.clear();}
+    @EventHandler public void join(PlayerJoinEvent event){Bukkit.getScheduler().runTask(plugin,()->{Player joined=event.getPlayer();if(participant(joined)){ensureItem(joined);apply(joined);}for(Player viewer:Bukkit.getOnlinePlayers())if(participant(viewer)&&policy.shouldHide(viewer.getUniqueId(),joined.getUniqueId(),participant(joined),adminOnly(joined)))packets.hideBodyKeepTab(viewer,joined);playerList.refreshViewer(joined);});}
+    public void forceVisible(Player viewer){forceVisible(viewer.getUniqueId());}
+    public void forceVisible(java.util.UUID viewerId){policy.forceVisible(viewerId);Player viewer=Bukkit.getPlayer(viewerId);if(viewer!=null)apply(viewer);}
+    public boolean visible(Player viewer){return policy.visible(viewer.getUniqueId());}
+    public void refresh(Player viewer){apply(viewer);playerList.refreshViewer(viewer);if(policy.visible(viewer.getUniqueId()))paceDisplay.refreshViewer(viewer);}
+    public void shutdown(){if(maintenance!=null)maintenance.cancel();maintenance=null;for(Player viewer:Bukkit.getOnlinePlayers()){for(Player target:Bukkit.getOnlinePlayers())if(!viewer.equals(target))packets.show(viewer,target);}policy.clear();}
     private void apply(Player viewer){for(Player target:Bukkit.getOnlinePlayers()){if(viewer.equals(target))continue;if(policy.shouldHide(viewer.getUniqueId(),target.getUniqueId(),participant(target),adminOnly(target)))packets.hideBodyKeepTab(viewer,target);else packets.show(viewer,target);}}
     private boolean participant(Player player){return rosters.current().participant(player.getUniqueId()).isPresent();}
     private boolean adminOnly(Player player){return admins.isAdmin(player.getUniqueId())&&!participant(player);}

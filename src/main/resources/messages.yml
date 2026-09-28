@@ -128,6 +128,10 @@ commands:
       - "/beat debug fill <high|ta|endurance|all> [seed <seed>]"
       - "/beat debug case <competition> <case>"
       - "/beat debug time set <mm:ss>|advance <10s>|next"
+      - "/beat debug notifications <high|ta|endurance|all>"
+      - "/beat debug colors <high|ta|endurance|all>"
+      - "/beat debug pace <player> <pb|border|leader|off>"
+      - "/beat debug sound <rank-change|milestone|leader-update|leader-change|goal|elimination>"
       - "/beat debug trigger <competition> <event> [values]"
       - "/beat debug scenario <name|all>"
   help:
@@ -424,13 +428,18 @@ ui:
     time-attack-title: "TIME ATTACK"
     time-attack-row: "&f#{rank} {time} {player}"
     endurance-title: "ENDURANCE"
-    endurance-row: "&f#{rank} Progress {progress} {player}"
+    endurance-row: "&f#{rank} P{progress} {player}"
   tab:
     high-row: "#{rank} {points}pt {player}"
     time-attack-row: "#{rank} {time} {player}"
-    endurance-row: "#{rank} Progress {progress} {player}"
+    endurance-row: "#{rank} P{progress} {player}"
 
 notifications:
+  highlights:
+    line: "{tag} {player}｜{detail}"
+    elimination: "{tag} {detail}｜{amount}"
+    eliminated-count: "{count}人脱落"
+    no-elimination: "対象者なし"
   high:
     practice-countdown: "[BEAT] 練習開始まで... {seconds}"
     practice-ending-countdown: "[BEAT] 練習終了まで... {seconds}"

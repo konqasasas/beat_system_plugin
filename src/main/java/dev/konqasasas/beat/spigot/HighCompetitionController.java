@@ -8,6 +8,8 @@ import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.configuration.CompetitionSettingsService;
 import dev.konqasasas.beat.domain.high.HighCompetitionSession;
 import dev.konqasasas.beat.domain.high.HighDifficultyRules;
+import dev.konqasasas.beat.domain.notification.HighlightDecision;
+import dev.konqasasas.beat.domain.notification.HighlightType;
 import dev.konqasasas.beat.domain.state.TournamentState;
 import dev.konqasasas.beat.map.BlockRegion;
 import dev.konqasasas.beat.map.HighCourseMap;
@@ -16,6 +18,10 @@ import dev.konqasasas.beat.map.persistence.MapConfigurationService;
 import dev.konqasasas.beat.map.validation.MapValidationService;
 import dev.konqasasas.beat.persistence.PersistenceException;
 import dev.konqasasas.beat.roster.RosterService;
+import dev.konqasasas.beat.ui.CompetitionNameColorPolicy;
+import dev.konqasasas.beat.ui.CompetitionVisualStyle;
+import dev.konqasasas.beat.ui.PlayerListDisplayService;
+import dev.konqasasas.beat.ui.PlayerVisibilityService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     private final ConfigurationFiles configuration;
     private final CompetitionSettingsService settings;
     private final PlayerCollisionService collisions;
+    private final PlayerListDisplayService playerList;
+    private final CompetitionVisualStyle visualStyle;
+    private final PlayerVisibilityService visibility;
+    private final CompetitionNotificationService notifications;
     private HighCompetitionSession session;
     private HighCompetitionDisplay display;
     private BukkitTask task;
@@ -59,7 +69,9 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
     public HighCompetitionController(BeatPlugin plugin, RosterService rosters, AdminAuthorizer admins,
             EventStateService eventState, MapConfigurationService maps, HighResultService results,
             MapValidationService validation, ConfigurationFiles configuration,
-            CompetitionSettingsService settings, PlayerCollisionService collisions) {
+            CompetitionSettingsService settings, PlayerCollisionService collisions,
+            PlayerListDisplayService playerList, CompetitionVisualStyle visualStyle,
+            PlayerVisibilityService visibility, CompetitionNotificationService notifications) {
         this.plugin = plugin;
         this.rosters = rosters;
         this.admins = admins;
@@ -72,6 +84,10 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         this.configuration = configuration;
         this.settings = settings;
         this.collisions = collisions;
+        this.playerList = playerList;
+        this.visualStyle = visualStyle;
+        this.visibility = visibility;
+        this.notifications = notifications;
     }
 
     public synchronized void startFromPrepare() throws PersistenceException {
@@ -105,7 +121,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         elapsedTick = 0;
         rankingDirty = true;
         processedEliminations.clear();
-        display = new HighCompetitionDisplay(configuration, collisions);
+        display = new HighCompetitionDisplay(configuration, collisions, playerList, visualStyle);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (session.contains(player.getUniqueId())) activateAtStart(player);
             else if (admins.isAdmin(player.getUniqueId())) {
@@ -290,7 +306,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                         "delta", result.score().delta())),
                 elapsedTick + configuration.styleInt("display-ticks.feedback", 20, 1, 1200));
         playConfigured(player, "sounds.high-spot", Sound.BLOCK_NOTE_BLOCK_PLING, 0.8F, 1.5F);
-        notifyRankChange(player, result);
+        notifyProgress(player, result, course, "C%d S%d".formatted(course, spot), false);
     }
 
     private void handleGoal(Player player, int course) {
@@ -307,13 +323,7 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                             "points", "%03d".formatted(result.score().currentPoints()),
                             "rank", "%02d".formatted(result.currentRank()))),
                     elapsedTick + configuration.styleInt("display-ticks.goal", 60, 1, 1200));
-            Bukkit.broadcastMessage(configuration.message(
-                    "notifications.high.all-clear-broadcast",
-                    "[BEAT] {player} が全コースクリア！ {points}pt (#{rank})",
-                    Map.of(
-                            "player", session.competitor(player.getUniqueId()).tournamentName(),
-                            "points", result.score().currentPoints(),
-                            "rank", result.currentRank())));
+            notifyProgress(player, result, course, "ALL CLEAR", true);
             playConfigured(player, "sounds.high-goal", Sound.UI_TOAST_CHALLENGE_COMPLETE, 1F, 1F);
             player.sendMessage(configuration.message(
                     "notifications.high.checkpoint-disabled",
@@ -332,18 +342,33 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
                     "notifications.high.checkpoint-updated",
                     "[BEAT] CPが{course}に更新されました。",
                     Map.of("course", session.currentCourse(player.getUniqueId()))));
-            notifyRankChange(player, result);
+            notifyProgress(player, result, course, "Course %d Clear".formatted(course), true);
         }
     }
 
-    private void notifyRankChange(Player player, HighCompetitionSession.ScoreResult result) {
-        if (result.rankChanged()) Bukkit.broadcastMessage(configuration.message(
-                "notifications.high.rank-update",
-                "[BEAT] {player} が更新: {points}pt (#{rank})",
-                Map.of(
-                        "player", session.competitor(player.getUniqueId()).tournamentName(),
-                        "points", result.score().currentPoints(),
-                        "rank", result.currentRank())));
+    private void notifyProgress(Player player, HighCompetitionSession.ScoreResult result,
+            int course, String achievement, boolean courseClear) {
+        java.util.List<HighlightType> conditions = new java.util.ArrayList<>();
+        if (result.allClear()) conditions.add(HighlightType.ALL_CLEAR);
+        if (result.currentRank() == 1) conditions.add(
+                result.previousRank() == 1 ? HighlightType.LEADER_UPDATE : HighlightType.LEADER_CHANGE);
+        else if (result.rankChanged()) conditions.add(HighlightType.RANK_CHANGE);
+        if (courseClear && !result.allClear()) conditions.add(HighlightType.COURSE_CLEAR);
+        if (conditions.isEmpty()) return;
+        HighlightType primary = HighlightDecision.primary(conditions).orElseThrow();
+        String label = switch (primary) {
+            case ALL_CLEAR -> "ALL CLEAR";
+            case LEADER_CHANGE -> "首位交代";
+            case LEADER_UPDATE -> "首位更新";
+            case COURSE_CLEAR -> "C" + course + " CLEAR";
+            default -> "順位変動";
+        };
+        UUID id = player.getUniqueId();
+        var color = CompetitionNameColorPolicy.high(session.currentCourse(id),
+                session.record(id).allCoursesCleared(), session.eliminated(id));
+        notifications.highlight(session.playerIds(), id, conditions, label,
+                visualStyle.playerName(color, session.competitor(id).tournamentName()),
+                achievement + "｜" + result.score().currentPoints() + "pt｜#" + result.currentRank());
     }
 
     private void announceUpcomingElimination() {
@@ -394,15 +419,12 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
             long boundary = eliminationTicks.get(index);
             if (previousTick >= boundary || currentTick < boundary || !processedEliminations.add(index)) continue;
             int requiredCourse = index + 2;
-            Bukkit.broadcastMessage(configuration.message(
-                    "notifications.high.elimination",
-                    "[BEAT] コース{course}未到達者脱落！",
-                    Map.of("course", requiredCourse)));
-            forAudience(player -> playConfigured(
-                    player, "sounds.elimination", Sound.BLOCK_NOTE_BLOCK_BASS, 1F, 0.7F));
             var eliminatedPlayers = session.eliminateBelowCourse(requiredCourse);
+            notifications.elimination(session.playerIds(), "Course " + requiredCourse + "未到達",
+                    eliminatedPlayers.size());
             rankingDirty = true;
             for (var eliminated : eliminatedPlayers) {
+                visibility.forceVisible(eliminated.playerId());
                 Player player = Bukkit.getPlayer(eliminated.playerId());
                 if (player != null) {
                     player.setGameMode(GameMode.SPECTATOR);
@@ -426,6 +448,9 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
             player.setVelocity(new Vector());
             returnItem.remove(player);
             adjustmentShield.remove(player);
+            if (session.contains(player.getUniqueId()) && player.getGameMode() == GameMode.SPECTATOR) {
+                player.setGameMode(GameMode.ADVENTURE);
+            }
             teleport(player, maps.high().end());
         });
         display.clear(session);
@@ -459,6 +484,8 @@ public final class HighCompetitionController implements Listener, LiveCompetitio
         CompetitionPlayerState.normalize(player);
         if (!session.active(player.getUniqueId())) {
             if (!eliminationTicks.isEmpty() && elapsedTick >= eliminationTicks.getFirst()) {
+                session.eliminateLate(player.getUniqueId());
+                visibility.forceVisible(player);
                 player.setGameMode(GameMode.SPECTATOR);
                 rankingDirty = true;
                 return;

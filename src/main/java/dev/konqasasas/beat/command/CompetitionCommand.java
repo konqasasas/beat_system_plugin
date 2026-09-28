@@ -2,6 +2,7 @@ package dev.konqasasas.beat.command;
 
 import dev.konqasasas.beat.application.EventStateService;
 import dev.konqasasas.beat.application.HighResultService;
+import dev.konqasasas.beat.application.HighStartPreflightService;
 import dev.konqasasas.beat.configuration.ConfigurationFiles;
 import dev.konqasasas.beat.domain.state.TournamentState;
 import dev.konqasasas.beat.persistence.PersistenceException;
@@ -19,13 +20,14 @@ public final class CompetitionCommand {
     private final TimeAttackController timeAttack;
     private EnduranceController endurance;
     private final ConfigurationFiles messages;
+    private final HighStartPreflightService preflight;
     private final java.util.Map<String, Long> restartConfirmations = new java.util.HashMap<>();
 
     public CompetitionCommand(HighPracticeController hp, HighCompetitionController hc,
             TimeAttackController ta, EnduranceController end, EventStateService state,
-            HighResultService results, ConfigurationFiles messages) {
+            HighResultService results, ConfigurationFiles messages, HighStartPreflightService preflight) {
         highPractice=hp; highCompetition=hc; timeAttack=ta; endurance=end;
-        eventState=state; highResults=results; this.messages=messages;
+        eventState=state; highResults=results; this.messages=messages; this.preflight=preflight;
     }
 
     public boolean execute(org.bukkit.command.CommandSender sender, String[] args) {
@@ -71,6 +73,7 @@ public final class CompetitionCommand {
                 highCompetition.shutdown();
                 highCompetition.resetRegisteredPlayers();
                 highResults.clearHigh();
+                preflight.clear();
                 eventState.resetHighForRestart(repeatPractice);
                 sender.sendMessage(message(repeatPractice ? "restart-practice" : "restart-running",
                         repeatPractice ? "[BEAT] 高難易度を練習前へ戻しました。自動開始はしません。"
@@ -84,6 +87,11 @@ public final class CompetitionCommand {
             help(sender);
             return true;
         }
+        sender.sendMessage(message("high-gui-required", "[BEAT] 高難易度の開始はゲーム内GUIから確認してください。"));
+        return true;
+    }
+
+    public boolean startHighConfirmed(org.bukkit.command.CommandSender sender) {
         try {
             if (eventState.current().tournamentState() == TournamentState.HIGH_PREPARE) {
                 highCompetition.startFromPrepare();

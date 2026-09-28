@@ -102,7 +102,7 @@ public final class DebugScenarioRunner {
         check(checks,"Start再進入",entered&&!events.enterStart(a,true,true,true,110),"2回目false",entered);
         check(checks,"Split飛ばし",events.reachSplit(a,2,200).orElseThrow()==100,100,events.reachSplit(a,1,200).orElse(-1));
         events.markRestarted(a);
-        check(checks,"restart item",events.running(a)&&events.displayedElapsed(a,300)==0,"running/0",events.running(a)+"/"+events.displayedElapsed(a,300));
+        check(checks,"restart item",!events.running(a)&&events.displayedElapsed(a,300)==0,"stopped/0",events.running(a)+"/"+events.displayedElapsed(a,300));
 
         TimeAttackSession tickTie=session(3);
         run(tickTie,a,0,500);run(tickTie,b,100,600);
@@ -123,8 +123,8 @@ public final class DebugScenarioRunner {
         TimeAttackSession dq=session(3);run(dq,a,0,400);run(dq,b,0,500);run(dq,c,0,600);dq.competitor(a).setDisqualified(true);dq.eliminateToTop(1);
         check(checks,"失格者が生存人数を消費しない",!dq.active(a)&&dq.active(b)&&!dq.active(c),"Bのみ生存",List.of(dq.active(a),dq.active(b),dq.active(c)));
 
-        TimeAttackSession disconnected=session(1);disconnected.enterStart(a,false,true,true,100);
-        check(checks,"切断中タイマー",disconnected.displayedElapsed(a,300)==200,200,disconnected.displayedElapsed(a,300));
+        TimeAttackSession disconnected=session(1);disconnected.enterStart(a,false,true,true,100);disconnected.cancelRun(a);
+        check(checks,"切断で走行取消",!disconnected.running(a)&&disconnected.displayedElapsed(a,300)==0,"stopped/0",disconnected.running(a)+"/"+disconnected.displayedElapsed(a,300));
         return new ScenarioResult("ta-elimination",checks);
     }
 

@@ -22,4 +22,10 @@ class PlayerVisibilityPolicyTest {
         var policy=new PlayerVisibilityPolicy();UUID viewer=UUID.randomUUID();policy.toggle(viewer);
         assertFalse(policy.visible(viewer));policy.clear();assertTrue(policy.visible(viewer));
     }
+
+    @Test void eliminationCanForceAHiddenViewerVisible(){
+        var policy=new PlayerVisibilityPolicy();UUID viewer=UUID.randomUUID();policy.toggle(viewer);
+        assertTrue(policy.forceVisible(viewer));assertTrue(policy.visible(viewer));
+        assertFalse(policy.forceVisible(viewer));
+    }
 }

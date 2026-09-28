@@ -12,6 +12,7 @@ import dev.konqasasas.beat.application.ResultEditingService;
 import dev.konqasasas.beat.application.ResultAnnouncementService;
 import dev.konqasasas.beat.application.ParticipantService;
 import dev.konqasasas.beat.application.WhitelistService;
+import dev.konqasasas.beat.application.HighStartPreflightService;
 import dev.konqasasas.beat.domain.state.TournamentState;
 import dev.konqasasas.beat.command.BeatCommand;
 import dev.konqasasas.beat.command.CompetitionCommand;
@@ -31,6 +32,9 @@ import dev.konqasasas.beat.spigot.CompetitionSafetyListener;
 import dev.konqasasas.beat.spigot.GameModeMonitor;
 import dev.konqasasas.beat.spigot.FirstJoinGameModeListener;
 import dev.konqasasas.beat.ui.PlayerVisibilityService;
+import dev.konqasasas.beat.ui.PlayerListDisplayService;
+import dev.konqasasas.beat.ui.CompetitionVisualStyle;
+import dev.konqasasas.beat.spigot.CompetitionNotificationService;
 import dev.konqasasas.beat.map.persistence.MapConfigurationService;
 import dev.konqasasas.beat.map.validation.MapValidationService;
 import dev.konqasasas.beat.persistence.PersistenceBootstrap;
@@ -44,6 +48,7 @@ import dev.konqasasas.beat.spigot.SetupWandListener;
 import dev.konqasasas.beat.spigot.HighPracticeController;
 import dev.konqasasas.beat.spigot.HighCompetitionController;
 import dev.konqasasas.beat.spigot.TimeAttackController;
+import dev.konqasasas.beat.spigot.TimeAttackPaceDisplay;
 import dev.konqasasas.beat.spigot.EnduranceController;
 import dev.konqasasas.beat.spigot.EnduranceMarkerService;
 import dev.konqasasas.beat.spigot.ParticipantProtectionListener;
@@ -68,6 +73,8 @@ public final class BeatPlugin extends JavaPlugin {
     private EnduranceController endurance;
     private EnduranceMarkerService enduranceMarkers;
     private PlayerVisibilityService playerVisibility;
+    private PlayerListDisplayService playerListDisplay;
+    private TimeAttackPaceDisplay timeAttackPaceDisplay;
     private PlayerCollisionService playerCollisions;
     private ConfigurationFiles configurationFiles;
     private CompetitionSettingsService competitionSettings;
@@ -106,7 +113,11 @@ public final class BeatPlugin extends JavaPlugin {
             AdminAuthorizer admins = new AdminAuthorizer(rosters);
             playerCollisions = new PlayerCollisionService(this);
             playerCollisions.start();
-            playerVisibility = new PlayerVisibilityService(this,rosters,admins,configurationFiles);
+            playerListDisplay = new PlayerListDisplayService(this);
+            timeAttackPaceDisplay = new TimeAttackPaceDisplay(this, admins);
+            playerVisibility = new PlayerVisibilityService(this,rosters,admins,configurationFiles,playerListDisplay,timeAttackPaceDisplay);
+            var visualStyle = new CompetitionVisualStyle(configurationFiles);
+            var competitionNotifications = new CompetitionNotificationService(admins, configurationFiles);
             WhitelistService whitelists = new WhitelistService(
                     rosters, eventState, new SpigotWhitelistGateway(getServer()));
 
@@ -127,26 +138,31 @@ public final class BeatPlugin extends JavaPlugin {
             HighResultService highResults = new HighResultService(persistence.results());
             highCompetition = new HighCompetitionController(
                     this, rosters, admins, eventState, maps, highResults, mapValidation,
-                    configurationFiles, competitionSettings, playerCollisions);
+                    configurationFiles, competitionSettings, playerCollisions, playerListDisplay,
+                    visualStyle, playerVisibility, competitionNotifications);
             highPractice = new HighPracticeController(
                     this, rosters, admins, eventState, maps, mapValidation, highCompetition,
                     configurationFiles, competitionSettings);
             TimeAttackResultService taResults = new TimeAttackResultService(persistence.results());
             timeAttack = new TimeAttackController(
                     this, rosters, admins, eventState, maps, mapValidation, taResults,
-                    configurationFiles, competitionSettings, playerCollisions);
+                    configurationFiles, competitionSettings, playerCollisions, playerListDisplay,
+                    visualStyle, playerVisibility, competitionNotifications, timeAttackPaceDisplay);
             EnduranceResultService enduranceResults=new EnduranceResultService(persistence.results());
             endurance=new EnduranceController(
                     this,rosters,admins,eventState,maps,mapValidation,enduranceResults,configurationFiles,
-                    competitionSettings,enduranceMarkers,playerCollisions);
+                    competitionSettings,enduranceMarkers,playerCollisions,playerListDisplay,visualStyle,
+                    playerVisibility,competitionNotifications);
             OverallService overallService=new OverallService(persistence.results(),eventState);
             ResultAuditLog resultAudit=new ResultAuditLog(getDataFolder().toPath().resolve("logs/result-edits.log"));
             ResultEditingService resultEditor=new ResultEditingService(persistence.results(),maps,resultAudit);
+            var highStartPreflight = new HighStartPreflightService(competitionSettings, rosters);
             CompetitionCommand competitionCommand=new CompetitionCommand(
                     highPractice, highCompetition, timeAttack,endurance, eventState, highResults,
-                    configurationFiles);
+                    configurationFiles,highStartPreflight);
             EmergencyOperationsService emergencyOperations=new EmergencyOperationsService(
-                    rosters,eventState,maps,highResults,highPractice,highCompetition,timeAttack,endurance);
+                    rosters,eventState,maps,highResults,highPractice,highCompetition,timeAttack,endurance,
+                    highStartPreflight);
             DebugService debugService=new DebugService(()->persistence.results().load()
                     .map(result->!result.players().isEmpty()||result.highConfirmed()
                             ||result.timeAttackConfirmed()||result.enduranceConfirmed()||result.overallConfirmed())
@@ -157,7 +173,7 @@ public final class BeatPlugin extends JavaPlugin {
             BeatAdminMenu adminMenu=new BeatAdminMenu(this,admins,rosters,eventState,maps,mapValidation,
                     competitionCommand,emergencyOperations,overallService,whitelists,
                     new ResultAnnouncementService(overallService,configurationFiles),configurationFiles,
-                    competitionSettings,settingsCommand);
+                    competitionSettings,settingsCommand,highStartPreflight);
             BeatCommand beatCommand = new BeatCommand(
                     rosters, eventState, whitelists, admins, setupCommand,
                     competitionCommand,
@@ -175,9 +191,10 @@ public final class BeatPlugin extends JavaPlugin {
                             resultEditor,
                             configurationFiles),
                     new EmergencyCommand(emergencyOperations,configurationFiles),
-                    new DebugCommand(debugService,highPractice,configurationFiles,clockService),settingsCommand,
+                    new DebugCommand(debugService,highPractice,configurationFiles,clockService,
+                            competitionNotifications,visualStyle,timeAttackPaceDisplay),settingsCommand,
                     overallService,adminMenu,configurationFiles,competitionSettings,
-                    getLogger());
+                    highStartPreflight,getLogger());
             PluginCommand command = Objects.requireNonNull(
                     getCommand("beat"), "beat command is missing from plugin.yml");
             command.setExecutor(beatCommand);
@@ -195,6 +212,8 @@ public final class BeatPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(enduranceMarkers,this);
             getServer().getPluginManager().registerEvents(adminMenu,this);
             getServer().getPluginManager().registerEvents(playerVisibility,this);
+            getServer().getPluginManager().registerEvents(playerListDisplay,this);
+            getServer().getPluginManager().registerEvents(timeAttackPaceDisplay,this);
             getServer().getPluginManager().registerEvents(playerCollisions,this);
             getServer().getPluginManager().registerEvents(new CompetitionSafetyListener(eventState),this);
             getServer().getPluginManager().registerEvents(
@@ -219,6 +238,8 @@ public final class BeatPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (playerVisibility != null) playerVisibility.shutdown();
+        if (playerListDisplay != null) playerListDisplay.shutdown();
+        if (timeAttackPaceDisplay != null) timeAttackPaceDisplay.clearAll();
         if (highPractice != null) highPractice.shutdown();
         if (highCompetition != null) highCompetition.shutdown();
         if (timeAttack != null) timeAttack.shutdown();

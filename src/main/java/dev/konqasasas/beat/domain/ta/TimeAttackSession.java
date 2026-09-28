@@ -33,7 +33,9 @@ public final class TimeAttackSession {
         if (update.updated()) cachedRankings=null;
         int newRank=rank(id); return new GoalResult(true,elapsed,update.updated(),oldRank,newRank,update.previousBestTicks(),update.currentBestTicks());
     }
-    public void markRestarted(UUID id) { requireActive(id).displayReset=true; }
+    public void markRestarted(UUID id) { cancelRun(id); }
+    public void cancelRun(UUID id) { State s=require(id);s.running=false;s.displayReset=true;s.splits.clear(); }
+    public OptionalLong currentSplit(UUID id, int number) { Long value=require(id).splits.get(number);return value==null?OptionalLong.empty():OptionalLong.of(value); }
     public long displayedElapsed(UUID id,long tick) { State s=require(id); return s.running&&!s.displayReset ? tick-s.startTick : 0; }
     public boolean running(UUID id){return require(id).running;}
     public List<UUID> eliminateToTop(int count) {
@@ -41,7 +43,7 @@ public final class TimeAttackSession {
         for(var e:rankings()) if(keep.size()<count && require(e.competitor().uuid()).active
                 && !e.competitor().disqualified() && e.record().hasPersonalBest()) keep.add(e.competitor().uuid());
         List<UUID> out=new ArrayList<>();
-        players.forEach((id,s)->{if(s.active&&!keep.contains(id)){s.active=false;s.running=false;s.record.freeze();out.add(id);}});
+        players.forEach((id,s)->{if(s.active&&!keep.contains(id)){s.active=false;s.running=false;s.eliminated=true;s.record.freeze();out.add(id);}});
         return List.copyOf(out);
     }
     public void finish(){players.values().forEach(s->{s.active=false;s.running=false;s.record.freeze();});}
@@ -50,9 +52,12 @@ public final class TimeAttackSession {
     public TimeAttackRecord record(UUID id){return require(id).record;}
     public Competitor competitor(UUID id){return require(id).competitor;}
     public boolean active(UUID id){return require(id).active;}
+    public boolean eliminated(UUID id){return require(id).eliminated;}
+    public void eliminateLate(UUID id){State s=require(id);s.active=false;s.running=false;s.eliminated=true;s.record.freeze();}
     public boolean contains(UUID id){return players.containsKey(id);}
+    public Set<UUID> playerIds(){return Set.copyOf(players.keySet());}
     private State requireActive(UUID id){State s=require(id);if(!s.active||s.record.frozen())throw new IllegalStateException("player is not active");return s;}
     private State require(UUID id){State s=players.get(id);if(s==null)throw new IllegalArgumentException("unknown player");return s;}
     public record GoalResult(boolean valid,long elapsedTicks,boolean personalBest,int previousRank,int currentRank,Long previousBest,Long currentBest){static GoalResult invalid(){return new GoalResult(false,0,false,0,0,null,null);} public boolean rankChanged(){return personalBest&&previousRank!=currentRank;}}
-    private static final class State{final Competitor competitor;final TimeAttackRecord record=new TimeAttackRecord();boolean active,running,displayReset;long startTick;Map<Integer,Long> splits=new HashMap<>();State(Competitor c){competitor=c;}}
+    private static final class State{final Competitor competitor;final TimeAttackRecord record=new TimeAttackRecord();boolean active,running,displayReset,eliminated;long startTick;Map<Integer,Long> splits=new HashMap<>();State(Competitor c){competitor=c;}}
 }

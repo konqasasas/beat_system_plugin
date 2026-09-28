@@ -127,6 +127,16 @@ public final class ConfigurationFiles {
         return Math.max(minimum, styles.getDouble(path, fallback));
     }
 
+    public ChatColor styleColor(String path, ChatColor fallback) {
+        try {
+            ChatColor selected = ChatColor.valueOf(
+                    styles.getString(path, fallback.name()).toUpperCase(java.util.Locale.ROOT));
+            return selected.isColor() ? selected : fallback;
+        } catch (IllegalArgumentException exception) {
+            return fallback;
+        }
+    }
+
     public Particle particle(String path, Particle fallback) {
         try {
             return Particle.valueOf(styles.getString(path, fallback.name()).toUpperCase(java.util.Locale.ROOT));
@@ -160,24 +170,18 @@ public final class ConfigurationFiles {
 
     private String applyStyleColors(String value) {
         String styled = value.replace("[BEAT]", "{beat}");
-        String beat = styleColor("colors.brand", ChatColor.DARK_AQUA) + "[BEAT]" + ChatColor.RESET;
+        String beat = styleColorCode("colors.brand", ChatColor.DARK_AQUA) + "[BEAT]" + ChatColor.RESET;
         return styled
                 .replace("{beat}", beat)
-                .replace("{primary}", styleColor("colors.primary", ChatColor.AQUA))
-                .replace("{success}", styleColor("colors.success", ChatColor.GREEN))
-                .replace("{warning}", styleColor("colors.warning", ChatColor.YELLOW))
-                .replace("{error}", styleColor("colors.error", ChatColor.RED))
+                .replace("{primary}", styleColorCode("colors.primary", ChatColor.AQUA))
+                .replace("{success}", styleColorCode("colors.success", ChatColor.GREEN))
+                .replace("{warning}", styleColorCode("colors.warning", ChatColor.YELLOW))
+                .replace("{error}", styleColorCode("colors.error", ChatColor.RED))
                 .replace("{reset}", ChatColor.RESET.toString());
     }
 
-    private String styleColor(String path, ChatColor fallback) {
-        try {
-            ChatColor selected = ChatColor.valueOf(
-                    styles.getString(path, fallback.name()).toUpperCase(java.util.Locale.ROOT));
-            return selected.isColor() ? selected.toString() : fallback.toString();
-        } catch (IllegalArgumentException exception) {
-            return fallback.toString();
-        }
+    private String styleColorCode(String path, ChatColor fallback) {
+        return styleColor(path, fallback).toString();
     }
 
     private static void validate(File file) throws ConfigurationLoadException {

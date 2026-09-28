@@ -10,6 +10,8 @@ import dev.konqasasas.beat.domain.endurance.EnduranceFallPolicy;
 import dev.konqasasas.beat.domain.endurance.EnduranceRecord;
 import dev.konqasasas.beat.domain.endurance.EnduranceRules;
 import dev.konqasasas.beat.domain.endurance.EnduranceSession;
+import dev.konqasasas.beat.domain.notification.HighlightDecision;
+import dev.konqasasas.beat.domain.notification.HighlightType;
 import dev.konqasasas.beat.domain.ranking.RankedEntry;
 import dev.konqasasas.beat.domain.state.TournamentState;
 import dev.konqasasas.beat.map.EnduranceProgressIndex;
@@ -18,6 +20,10 @@ import dev.konqasasas.beat.map.persistence.MapConfigurationService;
 import dev.konqasasas.beat.map.validation.MapValidationService;
 import dev.konqasasas.beat.persistence.PersistenceException;
 import dev.konqasasas.beat.roster.RosterService;
+import dev.konqasasas.beat.ui.CompetitionNameColorPolicy;
+import dev.konqasasas.beat.ui.CompetitionVisualStyle;
+import dev.konqasasas.beat.ui.PlayerListDisplayService;
+import dev.konqasasas.beat.ui.PlayerVisibilityService;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,7 +67,10 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
     private final Set<Integer> processedEliminations = new HashSet<>();
     private final Set<UUID> suppressTeleportDetection = new HashSet<>();
     private final ActionBarFeedbackState feedback = new ActionBarFeedbackState();
-    private final Map<UUID, String> renderedTabRows = new HashMap<>();
+    private final PlayerListDisplayService playerList;
+    private final CompetitionVisualStyle visualStyle;
+    private final PlayerVisibilityService visibility;
+    private final CompetitionNotificationService notifications;
 
     private EnduranceSession session;
     private EnduranceProgressIndex progressIndex;
@@ -78,7 +87,9 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
             EventStateService states,
             MapConfigurationService maps, MapValidationService validation, EnduranceResultService results,
             ConfigurationFiles configuration, CompetitionSettingsService settings,
-            EnduranceMarkerService markers, PlayerCollisionService collisions) {
+            EnduranceMarkerService markers, PlayerCollisionService collisions,
+            PlayerListDisplayService playerList, CompetitionVisualStyle visualStyle,
+            PlayerVisibilityService visibility, CompetitionNotificationService notifications) {
         this.plugin = plugin;
         this.rosters = rosters;
         this.admins = admins;
@@ -90,6 +101,10 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         this.settings = settings;
         this.markers = markers;
         this.collisions = collisions;
+        this.playerList = playerList;
+        this.visualStyle = visualStyle;
+        this.visibility = visibility;
+        this.notifications = notifications;
     }
 
     public void start() throws PersistenceException {
@@ -122,7 +137,6 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         countdown = (int) schedule.startCountdownTicks();
         tick = 0;
         displayDirty = true;
-        renderedTabRows.clear();
         forPlayers(this::prepare);
         forAdminObservers(this::prepareAdmin);
         announce(countdown / 20);
@@ -162,6 +176,8 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                 return;
             }
             if (!eliminationTicks.isEmpty() && tick >= eliminationTicks.getFirst()) {
+                session.eliminateLate(player.getUniqueId());
+                visibility.forceVisible(player);
                 player.setGameMode(GameMode.SPECTATOR);
                 displayDirty = true;
                 return;
@@ -245,11 +261,8 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         if (update.goal()) {
             notice(player, configuration.message(
                     "notifications.endurance.goal", "GOAL! ｜ {time} ｜ #{rank}",
-                    Map.of("time", clock(tick), "rank", update.currentRank())));
-            Bukkit.broadcastMessage(configuration.message(
-                    "notifications.endurance.goal-broadcast", "[BEAT] {player} が完走！ {time} (#{rank})",
-                    Map.of("player", session.competitor(id).tournamentName(),
-                            "time", clock(tick), "rank", update.currentRank())));
+                    Map.of("time", clock(tick), "progress", "%03d".formatted(progress),
+                            "rank", update.currentRank())));
             playConfigured(player, "sounds.endurance-goal", Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
         } else if (update.zone2() || update.zone3()) {
             int zone = update.zone3() ? 3 : 2;
@@ -258,11 +271,6 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                     Map.of("zone", zone, "progress", "%03d".formatted(progress),
                             "rank", "%02d".formatted(update.currentRank()))));
             playConfigured(player, "sounds.endurance-zone", Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
-            Bukkit.broadcastMessage(configuration.message(
-                    "notifications.endurance.zone-broadcast",
-                    "[BEAT] {player} がZone {zone}到達！ Progress {progress} (#{rank})",
-                    Map.of("player", session.competitor(id).tournamentName(), "zone", zone,
-                            "progress", "%03d".formatted(progress), "rank", update.currentRank())));
         } else {
             notice(player, configuration.message(
                     "notifications.endurance.progress", "Progress {progress} 到達 ｜ #{rank}",
@@ -270,13 +278,34 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                             "rank", "%02d".formatted(update.currentRank()))));
             playConfigured(player, "sounds.endurance-progress", Sound.BLOCK_NOTE_BLOCK_PLING, 0.7F, 1.5F);
         }
-        if (update.rankChanged() && !update.goal() && !update.zone2() && !update.zone3()) {
-            Bukkit.broadcastMessage(configuration.message(
-                    "notifications.endurance.rank-update",
-                    "[BEAT] {player} が更新: Progress {progress} (#{rank})",
-                    Map.of("player", session.competitor(id).tournamentName(),
-                            "progress", "%03d".formatted(progress), "rank", update.currentRank())));
-        }
+        notifyProgress(player, update, progress);
+    }
+
+    private void notifyProgress(Player player, EnduranceSession.Update update, int progress) {
+        List<HighlightType> conditions = new java.util.ArrayList<>();
+        if (update.currentRank() == 1 && update.previousRank() != 1) conditions.add(HighlightType.LEADER_CHANGE);
+        if (update.goal()) conditions.add(HighlightType.GOAL);
+        else if (update.zone3()) conditions.add(HighlightType.ZONE_3);
+        else if (update.zone2()) conditions.add(HighlightType.ZONE_2);
+        if (update.rankChanged()) conditions.add(HighlightType.RANK_CHANGE);
+        if (conditions.isEmpty()) return;
+        HighlightType primary = HighlightDecision.primary(conditions).orElseThrow();
+        String label = switch (primary) {
+            case LEADER_CHANGE -> "首位交代";
+            case GOAL -> "GOAL";
+            case ZONE_3 -> "Z3到達";
+            case ZONE_2 -> "Z2到達";
+            default -> "順位変動";
+        };
+        UUID id = player.getUniqueId();
+        EnduranceRecord record = session.record(id);
+        var color = CompetitionNameColorPolicy.endurance(record.zone2Reached(), record.zone3Reached(),
+                record.goalReached(), session.eliminated(id));
+        String event = update.goal() ? "GOAL" : update.zone3() ? "Zone 3到達"
+                : update.zone2() ? "Zone 2到達" : "Progress更新";
+        notifications.highlight(session.playerIds(), id, conditions, label,
+                visualStyle.playerName(color, session.competitor(id).tournamentName()),
+                event + "｜P" + "%03d".formatted(progress) + "｜#" + update.currentRank());
     }
 
     private MapLocation restart(UUID id) {
@@ -307,14 +336,11 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
                 });
             }
             if (previous < boundary && current >= boundary && processedEliminations.add(index)) {
-                Bukkit.broadcastMessage(configuration.message(
-                        "notifications.endurance.elimination", "[BEAT] Zone {zone} 未到達者脱落！",
-                        Map.of("zone", zone)));
-                forAudience(player -> playConfigured(
-                        player, "sounds.elimination", Sound.BLOCK_NOTE_BLOCK_BASS, 1, 0.7F));
                 var eliminated = session.eliminateWithoutZone(zone);
+                notifications.elimination(session.playerIds(), "Zone " + zone + "未到達", eliminated.size());
                 displayDirty = true;
                 for (var result : eliminated) {
+                    visibility.forceVisible(result.id());
                     Player player = Bukkit.getPlayer(result.id());
                     if (player == null) continue;
                     markers.hideCompetition(player);
@@ -359,10 +385,13 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
             }
             int progress = session.record(id).maxProgress();
             String rank = progress == 0 ? "--" : "%02d".formatted(ranks.get(id));
+            EnduranceRecord record = session.record(id);
+            var color = CompetitionNameColorPolicy.endurance(record.zone2Reached(), record.zone3Reached(),
+                    record.goalReached(), session.eliminated(id));
             action(player, configuration.message(
                     "ui.endurance.status", "Progress {progress} ｜ #{rank} ｜ Zone {zone}",
                     Map.of("progress", "%03d".formatted(progress), "rank", rank,
-                            "zone", "%02d".formatted(session.zone(id)))));
+                            "zone", visualStyle.segment(color, Integer.toString(session.zone(id))))));
         });
     }
 
@@ -380,25 +409,29 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         if (!displayDirty) return;
         displayDirty = false;
         var ranking = session.rankings();
-        List<String> rows = ranking.stream().limit(10).map(entry -> configuration.message(
-                "ui.scoreboard.endurance-row", "#{rank} Progress {progress} {player}",
-                Map.of("rank", "%02d".formatted(entry.rank()),
-                        "progress", "%03d".formatted(entry.record().maxProgress()),
-                        "player", entry.competitor().tournamentName()))).toList();
+        List<String> rows = ranking.stream().limit(10).map(entry -> {
+            UUID id = entry.competitor().uuid();
+            var color = CompetitionNameColorPolicy.endurance(entry.record().zone2Reached(),
+                    entry.record().zone3Reached(), entry.record().goalReached(), session.eliminated(id));
+            return configuration.message("ui.scoreboard.endurance-row", "#{rank} P{progress} {player}",
+                    Map.of("rank", "%02d".formatted(entry.rank()),
+                            "progress", "%03d".formatted(entry.record().maxProgress()),
+                            "player", visualStyle.playerName(color, entry.competitor().tournamentName())));
+        }).toList();
         rankingBoard.update(rows);
         forAudience(rankingBoard::show);
         for (var entry : ranking) {
             Player player = Bukkit.getPlayer(entry.competitor().uuid());
             if (player == null) continue;
+            var color = CompetitionNameColorPolicy.endurance(entry.record().zone2Reached(),
+                    entry.record().zone3Reached(), entry.record().goalReached(),
+                    session.eliminated(entry.competitor().uuid()));
             String row = configuration.message(
-                    "ui.tab.endurance-row", "#{rank} Progress {progress} {player}",
+                    "ui.tab.endurance-row", "#{rank} P{progress} {player}",
                     Map.of("rank", "%02d".formatted(entry.rank()),
                             "progress", "%03d".formatted(entry.record().maxProgress()),
-                            "player", player.getName()));
-            if (!row.equals(renderedTabRows.put(player.getUniqueId(), row))) {
-                player.setPlayerListOrder(entry.rank());
-                player.setPlayerListName(row);
-            }
+                            "player", visualStyle.playerName(color, entry.competitor().tournamentName())));
+            playerList.set(player, row, entry.rank());
         }
     }
 
@@ -451,6 +484,9 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
         states.transitionTo(TournamentState.ENDURANCE_FINISHED);
         forAudience(player -> {
             player.setVelocity(new Vector());
+            if (session.contains(player.getUniqueId()) && player.getGameMode() == GameMode.SPECTATOR) {
+                player.setGameMode(GameMode.ADVENTURE);
+            }
             teleport(player, maps.endurance().end());
         });
         Bukkit.broadcastMessage(configuration.message(
@@ -518,16 +554,12 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
             rankingBoard.hideAll();
         }
         if (session != null) {
-            forPlayers(player -> {
-                player.setPlayerListOrder(0);
-                player.setPlayerListName(player.getName());
-            });
+            playerList.clearCompetition(session.playerIds());
         }
         session = null;
         progressIndex = null;
         rankingBoard = null;
         displayDirty = false;
-        renderedTabRows.clear();
         suppressTeleportDetection.clear();
         feedback.clear();
     }

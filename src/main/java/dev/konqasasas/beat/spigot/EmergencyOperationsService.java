@@ -2,6 +2,7 @@ package dev.konqasasas.beat.spigot;
 
 import dev.konqasasas.beat.application.EventStateService;
 import dev.konqasasas.beat.application.HighResultService;
+import dev.konqasasas.beat.application.HighStartPreflightService;
 import dev.konqasasas.beat.domain.state.TournamentState;
 import dev.konqasasas.beat.map.MapLocation;
 import dev.konqasasas.beat.map.persistence.MapConfigurationService;
@@ -24,11 +25,13 @@ public final class EmergencyOperationsService {
     private final HighCompetitionController highCompetition;
     private final TimeAttackController timeAttack;
     private final EnduranceController endurance;
+    private final HighStartPreflightService preflight;
 
     public EmergencyOperationsService(RosterService rosters, EventStateService states,
             MapConfigurationService maps, HighResultService highResults,
             HighPracticeController highPractice, HighCompetitionController highCompetition,
-            TimeAttackController timeAttack, EnduranceController endurance) {
+            TimeAttackController timeAttack, EnduranceController endurance,
+            HighStartPreflightService preflight) {
         this.rosters = rosters;
         this.states = states;
         this.maps = maps;
@@ -37,6 +40,7 @@ public final class EmergencyOperationsService {
         this.highCompetition = highCompetition;
         this.timeAttack = timeAttack;
         this.endurance = endurance;
+        this.preflight = preflight;
     }
 
     public void cancelPhase() throws PersistenceException {
@@ -54,6 +58,7 @@ public final class EmergencyOperationsService {
         timeAttack.shutdown();
         endurance.shutdown();
         highCompetition.resetRegisteredPlayers();
+        preflight.clear();
     }
 
     public int collectParticipants() {
@@ -88,6 +93,7 @@ public final class EmergencyOperationsService {
                 highCompetition.shutdown();
                 highCompetition.resetRegisteredPlayers();
                 highResults.clearHigh();
+                preflight.clear();
                 states.resetHighForRestart(repeatPractice);
             }
             case TA_COUNTDOWN, TA_RUNNING -> {

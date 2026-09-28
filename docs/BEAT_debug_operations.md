@@ -488,6 +488,33 @@ GUI：
 
 ---
 
+## 通知・表示の単独確認
+
+Debugを有効にし、次のコマンドで本番データを変更せず表示を確認できます。
+
+```text
+/beat debug notifications all
+/beat debug colors all
+/beat debug sound rank-change
+/beat debug sound milestone
+/beat debug sound leader-update
+/beat debug sound leader-change
+/beat debug sound goal
+/beat debug sound elimination
+/beat debug pace <player> pb
+/beat debug pace <player> border
+/beat debug pace <player> leader
+/beat debug pace <player> off
+```
+
+Pace previewは競技進行中には使用できません。Debugを無効化すると表示専用Chestplateも解除されます。
+
+- [ ] Tabが順位順になり、退出者が残らない
+- [ ] プレイヤー表示OFF→ONでTabとPace装備が戻る
+- [ ] 脱落時にプレイヤー表示がONへ戻る
+- [ ] 通常終了・強制終了で脱落者がAdventureへ戻る
+- [ ] TAの切断復帰後はRestart地点から新しい走行になる
+
 ---
 
 # 参照

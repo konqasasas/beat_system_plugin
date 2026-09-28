@@ -45,6 +45,7 @@ public final class BeatCommand implements TabExecutor {
     private final dev.konqasasas.beat.gui.BeatAdminMenu menu;
     private final ConfigurationFiles configurationFiles;
     private final CompetitionSettingsService competitionSettings;
+    private final dev.konqasasas.beat.application.HighStartPreflightService preflight;
     private final Logger logger;
 
     public BeatCommand(
@@ -59,6 +60,7 @@ public final class BeatCommand implements TabExecutor {
             dev.konqasasas.beat.application.OverallService overallService,
             dev.konqasasas.beat.gui.BeatAdminMenu menu,
             ConfigurationFiles configurationFiles, CompetitionSettingsService competitionSettings,
+            dev.konqasasas.beat.application.HighStartPreflightService preflight,
             Logger logger) {
         this.rosters = rosters;
         this.eventState = eventState;
@@ -76,6 +78,7 @@ public final class BeatCommand implements TabExecutor {
         this.menu = menu;
         this.configurationFiles = configurationFiles;
         this.competitionSettings = competitionSettings;
+        this.preflight = preflight;
         this.logger = logger;
     }
 
@@ -102,7 +105,19 @@ public final class BeatCommand implements TabExecutor {
             case "player" -> playerInfo(sender, args);
             case "whitelist" -> whitelist(sender, args);
             case "setup" -> setup.execute(sender, java.util.Arrays.copyOfRange(args, 1, args.length));
-            case "competition" -> competitions.execute(sender, java.util.Arrays.copyOfRange(args, 1, args.length));
+            case "competition" -> {
+                String[] competitionArgs = java.util.Arrays.copyOfRange(args, 1, args.length);
+                boolean highStart = competitionArgs.length == 2
+                        && ((competitionArgs[0].equalsIgnoreCase("high") && competitionArgs[1].equalsIgnoreCase("start"))
+                        || (competitionArgs[0].equalsIgnoreCase("start") && competitionArgs[1].equalsIgnoreCase("high")));
+                if (highStart) {
+                    if (sender instanceof Player player) menu.openHighStartEntry(player);
+                    else sender.sendMessage(configurationFiles.message("commands.competition.high-gui-required",
+                            "[BEAT] 高難易度の開始確認はゲーム内GUI専用です。"));
+                    yield true;
+                }
+                yield competitions.execute(sender, competitionArgs);
+            }
             case "result" -> results.execute(sender, java.util.Arrays.copyOfRange(args, 1, args.length));
             case "overall" -> overall.execute(sender, java.util.Arrays.copyOfRange(args, 1, args.length));
             case "event" -> event.execute(sender, java.util.Arrays.copyOfRange(args, 1, args.length));
@@ -175,6 +190,7 @@ public final class BeatCommand implements TabExecutor {
             competitionSettings.reload();
             setup.reload();
             rosters.reload();
+            preflight.clear();
             sender.sendMessage(configurationFiles.message(
                     "reload.success",
                     "[BEAT] config・competition-settings・messages・styles・JSON・マップ設定を再読み込みしました。"));
@@ -279,6 +295,7 @@ public final class BeatCommand implements TabExecutor {
         }
         try {
             WhitelistSyncResult result = whitelists.synchronize(mode);
+            preflight.clear();
             sender.sendMessage(configurationFiles.message(
                     "commands.whitelist.completed", "[BEAT] Whitelistを完全同期しました: {mode}",
                     Map.of("mode", result.mode())));

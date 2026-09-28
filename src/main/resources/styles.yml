@@ -8,11 +8,69 @@ colors:
   warning: YELLOW
   error: RED
 
+competition-name-colors:
+  low-progress: RED
+  caution: YELLOW
+  active: AQUA
+  advanced: LIGHT_PURPLE
+  leader: GOLD
+  complete: GREEN
+  danger: RED
+  eliminated: DARK_GRAY
+
+highlight-tag-colors:
+  all-clear: GOLD
+  leader-change: GOLD
+  leader-update: YELLOW
+  goal: GREEN
+  milestone: AQUA
+  border: LIGHT_PURPLE
+  personal-best: GREEN
+  rank-change: GRAY
+  elimination: RED
+
 display-ticks:
   feedback: 60
   goal: 60
 
 sounds:
+  highlights:
+    all-clear:
+      name: UI_TOAST_CHALLENGE_COMPLETE
+      volume: 1.0
+      pitch: 1.0
+    leader-change:
+      name: ENTITY_PLAYER_LEVELUP
+      volume: 1.0
+      pitch: 1.2
+    leader-update:
+      name: BLOCK_NOTE_BLOCK_PLING
+      volume: 0.9
+      pitch: 1.4
+    goal:
+      name: UI_TOAST_CHALLENGE_COMPLETE
+      volume: 1.0
+      pitch: 1.0
+    milestone:
+      name: BLOCK_NOTE_BLOCK_PLING
+      volume: 0.9
+      pitch: 1.5
+    border:
+      name: ENTITY_PLAYER_LEVELUP
+      volume: 0.9
+      pitch: 1.0
+    personal-best:
+      name: BLOCK_NOTE_BLOCK_CHIME
+      volume: 0.9
+      pitch: 1.2
+    rank-change-notification:
+      name: BLOCK_NOTE_BLOCK_COW_BELL
+      volume: 0.8
+      pitch: 1.2
+    elimination:
+      name: minecraft:entity.dragon_fireball.explode
+      volume: 0.7
+      pitch: 0.7
   countdown:
     name: BLOCK_NOTE_BLOCK_HAT
     volume: 1.0
