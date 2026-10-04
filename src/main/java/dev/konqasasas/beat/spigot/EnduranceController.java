@@ -235,9 +235,11 @@ public final class EnduranceController implements Listener, LiveCompetitionClock
             UUID id = player.getUniqueId();
             if (!session.contains(id) || !session.active(id)) continue;
             if (suppressTeleportDetection.remove(id)) continue;
-            MapLocation location = location(player);
-            int best = progressIndex.highestContaining(location, horizontalRadius, verticalTolerance);
-            if (best > 0) updateProgress(player, best);
+            if (EnduranceGroundSupport.isGrounded(player)) {
+                MapLocation location = location(player);
+                int best = progressIndex.highestContaining(location, horizontalRadius, verticalTolerance);
+                if (best > 0) updateProgress(player, best);
+            }
             if (EnduranceFallPolicy.shouldRestart(
                     session.record(id), player.getLocation().getY(), maps.endurance().fallY())) {
                 player.setVelocity(new Vector());
